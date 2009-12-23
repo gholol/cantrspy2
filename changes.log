@@ -1,0 +1,104 @@
+﻿Version 2.1.0
+    + Login Screen shown initially with Player ID field, Password field and Login button
+    + Application icon shown after login which changes to represent current status
+    + Possible states are:
+        + Blank, connecting
+        + Exclamation mark, new events
+        + Ellipsis, no new events
+        + Question mark, error
+    + Tray icon has tooltip which gives information on current status
+    + When a single character has new events, their name will be shown. Otherwise, a number is shown
+
+Version 2.2.0
+    + Main window has content for testing purposes
+
+Version 2.2.1
+    + Fixed several typos in main.htm which caused errors
+
+Version 2.2.2
+    + Made windows created by windowManager minimisable
+    - Moved all code from main.htm into main.js
+    - Moved all manager objects into new file main.classes.js
+    - Created new Object updateManager and moved update handling code into it
+    - Moved status icon initialisation into iconManager class
+    - Moved tooltip setting logic into iconManager class
+        - Implemented capability to show tooltips selectively based on MAX_TOOLTIP_LENGTH
+        + Changed status tooltips to utilise this capability
+    - Creates function appExit to handle application shutdown
+
+Version 2.2.3
+    + Fixed a bug in which the Player ID value was not properly encoded in the request URL
+    + Fixed a bug in which the list of character names was not properly formed in the tooltip
+    - Enabled a debugging mode which is activated by passing "debug" as a parameter to the application
+        - In debug mode, the client queries the local host insteaad of the remote server
+        - Additionally, the queries are made much more frequently - once every 5 seconds
+
+Version 2.2.4
+    - Made some optimisations to the code using jslint
+
+Version 2.3.0
+    + Added command to open the user's player page in the native browser
+    - Created global settings object to hold constant values
+        - Moved the remote server definition to settings
+        - Moved the update timer interval to settings
+    + Created a global string container from which all localisable strings are defined
+    - Some miscellaneous code improvements
+
+Version 2.4.0
+    - Encoded all files as UTF-8 and changed HTML files to use strict XHTML
+    - Implemented the AIRLocalizer API for strings
+    + Changed some strings, making them more concise
+    - Fixed an inconsistency in which www.cantr.net was used as the domain for opening the player page regardless of the host setting
+    - Separated login.htm into login.css, login.js and login.htm
+    - Changed login.htm to resize its self dynamically based on its content
+    + Added a status field to the login window
+    - Made some miscellaneous code changes
+    + Changed the server response "ERROR Hacking attempt" to trigger an invalid login error (due to the fact that a player ID containing non-digit characters triggered such an error).
+    + Caused the login window to stay open during a login attempt, closing when a network response is recieved that does not indicate incorrect details. If the user details are incorrect, this is reported to the user who has the opportunity to re-enter them.
+
+Version 2.4.5
+    + Added icons to show the number of active characters from 1 to 15
+    - Changed the behaviour of the iconManager: a set of icons is loaded into memory as a result of being set as the current icons, and icons are unloaded when they are no longer directly in use
+    + Prevented any tray icon from being created during a login sequence involving an open login window
+    - Changed update request method to POST for greater security
+    - Fixed a memory leak in which references were kept to instances of the login window after they were closed
+    + Added option to logout to the application icon menu
+    - Moved menu-handling functionality to a menuManager
+
+Version 2.4.7
+    + Fixed an error which occured in Windows XP when the desktop is composed of multiple screens, in which the application window is centered on the top-left corner of the main screen. The window is now always created in the centre of the primary screen. Note: compatibility has not been tested yet on other operating systems.
+    - changes.log is now included with the installation package (and can be found on the root of the installation directory).
+
+Version 2.4.8
+    + Fixed an error which could occur when opening the player page after logging out then logging in again.
+    + The version number is displayed in the bottom-left corner of the login window.
+
+Version 2.5.0
+    + Added checkbox on login window which enables application to be set to run on startup (when that specific user logs in, technically).
+
+Version 2.5.1
+    + Added checkbox on login window enabling user credentials to be saved.
+        + When the application is started with details saved, no login window will be displayed - the application will automatically begin logging in.
+        + The saved details can be deleted by logging out and unchecking the "remember details" checkbox.
+        + Details are saved when a login attempt is made with "remeber details" checked.
+    - Fixed some minor errors.
+
+Version 2.5.2
+    + Made verbose error messages always display, even if they exceed the tooltip limit.
+    + Added descriptive error message for generic connection failure.
+
+Version 2.6.0
+    + Added capability to "update now" which causes the application to immediately send an update request to the server.
+        + Added application icon right-click menu entry for this function.
+        + This can also be triggered by single-clicking the system tray icon (Windows/Linux only).
+        - The icon will change to a blank circle to indicate that the request is in progress.
+        - The user cannot initiate a new request if one is already in progress.
+        - Updates will still occur automatically, however the timer is reset after a user-initiated update.
+    + A player page open request can now be initiated by double-clicking the system tray icon (Windows/Linux only). This will perform exactly the same action as selecting the corresponding application icon menu item.
+    - Made some minor structural and interface related changes.
+
+TO DO:
+    - Implement automatic updates
+    - Implement window to show feedback while logged in
+        - Enable ignoring of characters
+    - etc...
