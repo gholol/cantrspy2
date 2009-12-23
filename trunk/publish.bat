@@ -1,0 +1,1 @@
+adt -package -storetype pkcs12 -keystore C:\Docs\Certificates\JosephCrowe.pfx published\package.air  application.xml content modules locale icons/*.png changes.log
