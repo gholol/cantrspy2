@@ -6,7 +6,7 @@
 	<description>
 		<text xml:lang="en">CantrSpy is an unofficial accessory to the online game Cantr II, which runs in the background on a player's system, providing them with real-time feedback about the status of their characters through a tray or dock icon. This version was created by joo, based on the previous work of Cantr Programming Department member marol.</text>
 	</description>
-	<version>2.6.0</version>
+	<version>2.6.5</version>
 	<initialWindow>
 		<content>content/main.htm</content>
 		<visible>false</visible>

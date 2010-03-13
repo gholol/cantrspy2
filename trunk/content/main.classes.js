@@ -48,13 +48,17 @@ var updateManager = {
 	initialise: function (aCredentials) {
 		// Activates the continous routine of requesting updates from the server
 		// and indicating changes in the current status to the user
-		var req = new air.URLRequest();
+		var req = new air.URLRequest;
 		req.url = "http://" + settings.server + "/app.getevents2.php";
-		var vars = new air.URLVariables();
-			vars.id = aCredentials.id;
-			vars.pass = hex_md5(aCredentials.pw);
-			vars.ver = settings.protocolVersion;
+        
+		var vars = new air.URLVariables;
+		vars.id = aCredentials.id;
+		vars.pass = jCryptionEncrypt(settings.rsaPublicKey, aCredentials.pw);
+		vars.ver = settings.protocolVersion;
 		req.data = vars;
+        
+        if (settings.debug) air.trace(vars.toString());
+        
 		req.method = air.URLRequestMethod.POST;
 		req.cacheResponse = false; req.useCache = false;
 		this.updateRequest = req;
@@ -110,13 +114,14 @@ var updateManager = {
 	},
 
 	updateEvent: function (event) {
+    
 		// Handle an event from the HTTPLoader
 		switch (event.type) {
-
+        
 			case air.Event.COMPLETE:
 				// The network operation completed successfully.
 				var data = updateManager.updateLoader.data;
-				if (data.substr(0, 7) == "OK LIST") {
+				if (data && data.substr(0, 7) == "OK LIST") {
 					// The authentication was successful
 					var list = data.substr(8);
 					if (list.length) {
@@ -146,7 +151,7 @@ var updateManager = {
 						iconManager.setTooltip(localizer.getString("trayTooltips", "errorAuth"));
 					}
 					var badLogin = true;
-				} else if (data.substr(0, 5) == "ERROR") {
+				} else if (data && data.substr(0, 5) == "ERROR") {
 					// The server returned an error message
 					iconManager.setIcon("error");
 					iconManager.setTooltip(localizer.getString("trayTooltips", "error", [data.substr(6)]));
@@ -158,7 +163,7 @@ var updateManager = {
 
 				break;
 
-			case air.IOErrorEvent.IO_ERROR: case air.SecurityErrorEvent.SECURITY_ERROR:
+			case air.IOErrorEvent.IO_ERROR, air.SecurityErrorEvent.SECURITY_ERROR:
 				// A transmission error occured.
                 var message;
                 switch (event.errorID) {
@@ -169,7 +174,7 @@ var updateManager = {
 				iconManager.setTooltip(message);
                 air.trace(event);
 		}
-
+        
         // Manage the opened login window
         if (("login" in windowManager) && !badLogin) {
             windowManager.login.nativeWindow.dispatchEvent(new air.Event("successfulLogin"));
