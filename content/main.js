@@ -26,6 +26,11 @@ function appInit () {
 	}
 	settings.protocolVersion = "1.0.1.";
     settings.clickThreshold = 500;
+    settings.rsaPublicKey = new jCryptionKeyPair(
+        "10001",
+        "87b9bbe6272a7faeb0fa7f2d32c5299e7639edeffc679d6edf3538d43db1641f449ff5ce6076be1fe968d212fee81168a45d44a68670b1912de49cac3fa4db51db479d6abe3c8f25625b13dd2c0421a8ba935e9469583fe0d1c0c1bda42432632202d8b1ab127690cab409872f0a662e6b793b7d1e3ccafcb0ca829a5f12b72b",
+        "131"
+    );
 
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];

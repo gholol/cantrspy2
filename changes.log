@@ -97,6 +97,9 @@ Version 2.6.0
     + A player page open request can now be initiated by double-clicking the system tray icon (Windows/Linux only). This will perform exactly the same action as selecting the corresponding application icon menu item.
     - Made some minor structural and interface related changes.
 
+Version 2.6.5
+    + Implemented new security protocol to fix incompatibility caused by server-side changes.
+
 TO DO:
     - Implement automatic updates
     - Implement window to show feedback while logged in
