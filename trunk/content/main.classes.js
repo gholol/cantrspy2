@@ -45,24 +45,16 @@ var windowManager = {
  */
 var updateManager = {
 
-	initialise: function (aCredentials) {
-		// Activates the continous routine of requesting updates from the server
-		// and indicating changes in the current status to the user
-		var req = new air.URLRequest;
-		req.url = "http://" + settings.server + "/app.getevents2.php";
-        
-		var vars = new air.URLVariables;
-		vars.id = aCredentials.id;
-		vars.pass = jCryptionEncrypt(settings.rsaPublicKey, aCredentials.pw);
-		vars.ver = settings.protocolVersion;
-		req.data = vars;
-        
-        if (settings.debug) air.trace(vars.toString());
-        
-		req.method = air.URLRequestMethod.POST;
-		req.cacheResponse = false; req.useCache = false;
-		this.updateRequest = req;
+	destroy: function () {
+		window.clearInterval(this.interval);
+		delete this.interval;
+        delete this.credentials;
+        delete this.phase;
+        delete this.status;
+		delete this.updateRequest;
+	},
 
+	initialise: function (aCredentials) {
 		// Set to destroy on logout
 		var logoutEvent = function () {
 			updateManager.destroy();
@@ -70,31 +62,33 @@ var updateManager = {
 		};
 		nativeApplication.addEventListener("logout", logoutEvent);
 
-		this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
-		this.update();
+        // Retrieve a public key from the server to initialise an update session
+        this.credentials = aCredentials;
+
+        var req = new air.URLRequest;
+        req.url = "http://" + settings.server + "/app.getevents2.php?requestkey=1";
+        req.cacheResponse = false; req.useCache = false;
+        this.updateRequest = req;
+
+        this.phase = "requesting_key";
+        this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
+        this.update();
 	},
-    
+
     userUpdate: function () {
-        if (this.status == "idle") {
+        if ((this.status == "idle") && (this.phase = "main")) {
             // Reset timer
             window.clearInterval(this.interval);
             this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
-            
+
             // Indicate activity to user
             iconManager.setIcon("blank");
             iconManager.setTooltip(localizer.getString("trayTooltips", "connecting"));
-            
+
             // Invoke update
             this.update();
         }
     },
-
-	destroy: function () {
-		window.clearInterval(this.interval);
-		delete this.interval;
-		delete this.updateRequest;
-        delete this.status;
-	},
 
 	update: function () {
 		// Begin a new update request
@@ -108,80 +102,119 @@ var updateManager = {
 
 		loader.load(this.updateRequest);
 		this.updateLoader = loader;
-        
+
         this.status = "updating";
         menuManager.appIcon.disable("updateNow");
 	},
 
 	updateEvent: function (event) {
-    
 		// Handle an event from the HTTPLoader
-		switch (event.type) {
-        
-			case air.Event.COMPLETE:
-				// The network operation completed successfully.
-				var data = updateManager.updateLoader.data;
-				if (data && data.substr(0, 7) == "OK LIST") {
-					// The authentication was successful
-					var list = data.substr(8);
-					if (list.length) {
-						// One or more character names were returned
-						iconManager.initialise();
-						var names = list.split("\n");
-						if (names.length in iconManager.icons) {
-							iconManager.setIcon(names.length);
-						} else {
-							iconManager.setIcon("alert");
-						}
-						var primary = names.join(", ");
-						var secondary = localizer.getString("trayTooltips", "numChars", [names.length]);
-						iconManager.setTooltip(primary, secondary);
-					} else {
-						// No character names were returned
-						iconManager.setIcon("idle");
-						iconManager.setTooltip(localizer.getString("trayTooltips", "noChars"));
-					}
-				} else if ((data == "BAD LOGIN") || (data == "ERROR Hacking attempt")) {
-					// The login details were incorrect
-					if ("login" in windowManager) {
-						windowManager.login.nativeWindow.dispatchEvent(new air.Event("badLogin"));
-						this.destroy();
-					} else {
-						iconManager.setIcon("error");
-						iconManager.setTooltip(localizer.getString("trayTooltips", "errorAuth"));
-					}
-					var badLogin = true;
-				} else if (data && data.substr(0, 5) == "ERROR") {
-					// The server returned an error message
-					iconManager.setIcon("error");
-					iconManager.setTooltip(localizer.getString("trayTooltips", "error", [data.substr(6)]));
-				} else {
-					// The response could not be interpreted
-					iconManager.setIcon("error");
-					iconManager.setTooltip(localizer.getString("trayTooltips", "errorParse"));
-				}
 
-				break;
-
-			case air.IOErrorEvent.IO_ERROR, air.SecurityErrorEvent.SECURITY_ERROR:
-				// A transmission error occured.
+        switch (event.type) {
+            case air.IOErrorEvent.IO_ERROR: case air.SecurityErrorEvent.SECURITY_ERROR:
+                // A transmission error occured
                 var message;
                 switch (event.errorID) {
                     case 2032: message = localizer.getString("trayTooltips", "errorConnect"); break;
                     default: message = event.text;
                 }
-				iconManager.setIcon("error");
-				iconManager.setTooltip(message);
+                iconManager.setIcon("error");
+                iconManager.setTooltip(message);
                 air.trace(event);
-		}
-        
+                break;
+
+            case air.Event.COMPLETE:
+                var data = updateManager.updateLoader.data;
+                if (this.phase == "requesting_key") {
+                    try {
+                        try {
+                            // Attempt to parse the supplied public key details
+                            data = /^([\dA-F]+)\n([\dA-F]+)\n(\d+)$/i.exec(data);
+                            var publicKey = new jCryptionKeyPair(data[1], data[2], data[3]);
+                            var pass = jCryptionEncrypt(publicKey, this.credentials.pw);
+                        } catch (error) { throw "parse_fail"; }
+
+                        var req = new air.URLRequest;
+                        req.url = "http://" + settings.server + "/app.getevents2.php";
+                        var vars = new air.URLVariables;
+                        vars.id = this.credentials.id;
+                        vars.pass = pass;
+                        vars.ver = settings.protocolVersion;
+                        req.data = vars;
+
+                        if (settings.debug) air.trace(vars.toString());
+
+                        req.method = air.URLRequestMethod.POST;
+                        req.cacheResponse = false; req.useCache = false;
+                        this.updateRequest = req;
+
+                        delete this.credentials;
+                        this.phase = "main";
+
+                        return this.update(); // Immediately attempt to authenticate
+                    }
+                    catch (error) { if (error == "parse_fail") {
+                        // Parsing failed
+                        iconManager.setIcon("error");
+                        iconManager.setTooltip(localizer.getString("trayTooltips", "errorParse"));
+                    } else throw error; }
+                }
+                else {
+                    // The update request completed successfully.
+                    if (data && data.substr(0, 7) == "OK LIST") {
+                        // The authentication was successful
+                        var list = data.substr(8);
+                        if (list.length) {
+                            // One or more character names were returned
+                            iconManager.initialise();
+                            var names = list.split("\n");
+                            if (names.length in iconManager.icons) {
+                                iconManager.setIcon(names.length);
+                            } else {
+                                iconManager.setIcon("alert");
+                            }
+                            var primary = names.join(", ");
+                            var secondary = localizer.getString("trayTooltips", "numChars", [names.length]);
+                            iconManager.setTooltip(primary, secondary);
+                        } else {
+                            // No character names were returned
+                            iconManager.setIcon("idle");
+                            iconManager.setTooltip(localizer.getString("trayTooltips", "noChars"));
+                        }
+                    } else if ((data == "BAD LOGIN") || (data == "ERROR Hacking attempt")) {
+                        // The login details were incorrect
+                        if ("login" in windowManager) {
+                            windowManager.login.nativeWindow.dispatchEvent(new air.Event("badLogin"));
+                            this.destroy();
+                        } else {
+                            iconManager.setIcon("error");
+                            iconManager.setTooltip(localizer.getString("trayTooltips", "errorAuth"));
+                        }
+                        var badLogin = true;
+                    } else if (data && data.substr(0, 5) == "ERROR") {
+                        // The server returned an error message
+                        iconManager.setIcon("error");
+                        iconManager.setTooltip(localizer.getString("trayTooltips", "error", [data.substr(6)]));
+                    } else {
+                        // The response could not be interpreted
+                        iconManager.setIcon("error");
+                        iconManager.setTooltip(localizer.getString("trayTooltips", "errorParse"));
+                    }
+                } break;
+
+            default:
+                // Unrecognised event, ignore
+                if (settings.debug) air.trace(event);
+                return;
+        }
+
         // Manage the opened login window
         if (("login" in windowManager) && !badLogin) {
             windowManager.login.nativeWindow.dispatchEvent(new air.Event("successfulLogin"));
         }
-        
+
         this.status = "idle";
-        menuManager.appIcon.enable("updateNow");
+        if (this.phase == "main") menuManager.appIcon.enable("updateNow");
 	}
 
 };
@@ -202,7 +235,7 @@ var menuManager = {
 					i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
 					i.name = "openPlayerPage";
 					menu.addItem(i);
-                    
+
                     // Update now
                     i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
                     i.name = "updateNow";
@@ -231,12 +264,12 @@ var menuManager = {
 
 			nativeApplication.icon.menu = menu;
 		},
-        
+
         enable: function (name) {
             var item = nativeApplication.icon.menu.getItemByName(name);
             if (item !== null) item.enabled = true;
         },
-        
+
         disable: function (name) {
             var item = nativeApplication.icon.menu.getItemByName(name);
             if (item !== null) item.enabled = false;
@@ -248,7 +281,7 @@ var menuManager = {
 				case "openPlayerPage":
 					requestManager.playerPage.open();
 					break;
-                    
+
                 case "updateNow":
                     updateManager.userUpdate();
                     break;
@@ -298,14 +331,14 @@ var iconManager = {
 				14: ["14_128.png", "14_48.png", "14_32.png", "14_16.png"],
 				15: ["15_128.png", "15_48.png", "15_32.png", "15_16.png"]
 			};
-            
+
             if (air.NativeApplication.supportsSystemTrayIcon) {
                 function clickEvent () { iconManager.click(); }
                 nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, clickEvent);
             }
 		}
 	},
-    
+
     click: function () {
         if (this.clickTimer === null) {
             function clickTimeout () {
@@ -319,12 +352,12 @@ var iconManager = {
             this.doubleClick();
         }
     },
-    
+
     singleClick: function () {
         // Update now
         updateManager.userUpdate();
     },
-    
+
     doubleClick: function () {
         // Open player page
         requestManager.playerPage.open();
@@ -409,7 +442,7 @@ var requestManager = {
 				nativeApplication.removeEventListener("logout", arguments.callee);
 			};
 			nativeApplication.addEventListener("logout", logoutEvent);
-            
+
             // Initialise status
             this.status = "idle";
 		},
