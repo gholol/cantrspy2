@@ -100,6 +100,9 @@ Version 2.6.0
 Version 2.6.5
     + Implemented new security protocol to fix incompatibility caused by server-side changes.
 
+Version 2.6.6
+    - Implemented revised security protocol.
+
 TO DO:
     - Implement automatic updates
     - Implement window to show feedback while logged in
