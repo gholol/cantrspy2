@@ -1,22 +1,31 @@
 <?php
 
-require_once "jcrypt/jCryption-1.0.1.php";
-$jCryption = new jCryption;
+if ($_REQUEST['requestkey'] == "1") {
+    echo "10001\n";
+    echo "96029d9b2c3e150a582af0012b7f0a95\n";
+    echo "19";
+} else {
+    require_once "jcrypt/jCryption-1.0.1.php";
+    $jCryption = new jCryption;
 
-$decrpass = $jCryption->decrypt($_REQUEST['pass'],"41592650364654209784838915874554858951132058969115094099057330712225291268661551322901863787702523052569716517279489054237101670638013497361073535252371715282918424052920296580534150654558626604460860694439264510629653736499418012068025558347784072735727385646007518503869966670573110458107270607535224950273", "95309703739452550582831749289185377310501459743318039229717492408640171813785737379336344302610498367002150748005100494669123503098024146033310359434779219950324950455583685390112058420524541521466701972679104402367137213771910675128253124514394471700873178437562930596981077739218135934542584568128103167787");
-
-if ($_REQUEST['ver'] == "1.0.1.") {
-    if (($_REQUEST['id'] == "83913") && ($decrpass == "cantrtest")) {
-        echo "OK LIST\n" .
-             "Ecaftnuc\n" .
-             "Quarantine";
+    $decrpass = $jCryption->decrypt(
+        $_REQUEST['pass'],
+        "32144247554415158744256763037986114013",
+        "199397780593819806807529031897016371861"
+    );
+    if ($_REQUEST['ver'] == "1.0.1.") {
+        if (($_REQUEST['id'] == "83913") && ($decrpass == "cantrtest")) {
+            echo "OK LIST\n" .
+                 "Ecaftnuc\n" .
+                 "Quarantine";
+        }
+        else {
+            echo "BAD LOGIN";
+        }
     }
     else {
-        echo "BAD LOGIN";
+        echo "ERROR Hacking attempt";
     }
-}
-else {
-    echo "ERROR Hacking attempt";
 }
 
 ?>
