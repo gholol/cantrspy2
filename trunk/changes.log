@@ -103,6 +103,10 @@ Version 2.6.5
 Version 2.6.6
     - Implemented revised security protocol.
 
+Version 2.6.7
+    - Minor UI adjustment.
+    - Changed protocol version to 1.1.0.
+
 TO DO:
     - Implement automatic updates
     - Implement window to show feedback while logged in

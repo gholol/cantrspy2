@@ -13,7 +13,7 @@ if ($_REQUEST['requestkey'] == "1") {
         "32144247554415158744256763037986114013",
         "199397780593819806807529031897016371861"
     );
-    if ($_REQUEST['ver'] == "1.0.1.") {
+    if ($_REQUEST['ver'] == "1.1.0.") {
         if (($_REQUEST['id'] == "83913") && ($decrpass == "cantrtest")) {
             echo "OK LIST\n" .
                  "Ecaftnuc\n" .
