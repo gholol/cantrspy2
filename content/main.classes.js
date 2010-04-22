@@ -214,7 +214,7 @@ var updateManager = {
         }
 
         this.status = "idle";
-        if (this.phase == "main") menuManager.appIcon.enable("updateNow");
+        menuManager.appIcon.enable("updateNow");
 	}
 
 };

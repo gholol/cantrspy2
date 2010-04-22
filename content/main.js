@@ -24,7 +24,7 @@ function appInit () {
 		settings.server = "cantr.net";
 		settings.updateInterval = 90000;
 	}
-	settings.protocolVersion = "1.0.1.";
+	settings.protocolVersion = "1.1.0.";
     settings.clickThreshold = 500;
 
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
