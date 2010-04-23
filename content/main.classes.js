@@ -66,7 +66,14 @@ var updateManager = {
         this.credentials = aCredentials;
 
         var req = new air.URLRequest;
-        req.url = "http://" + settings.server + "/app.getevents2.php?requestkey=1";
+        req.url = "http://" + settings.server + "/app.getevents2.php";
+        var vars = new air.URLVariables;
+        vars.id = this.credentials.id;
+        vars.ver = settings.protocolVersion;
+        vars.requestkey = "1";
+        req.data = vars;
+        if (settings.debug) air.trace(vars.toString());
+        
         req.cacheResponse = false; req.useCache = false;
         this.updateRequest = req;
 
@@ -134,19 +141,9 @@ var updateManager = {
                             var pass = jCryptionEncrypt(publicKey, this.credentials.pw);
                         } catch (error) { throw "parse_fail"; }
 
-                        var req = new air.URLRequest;
-                        req.url = "http://" + settings.server + "/app.getevents2.php";
-                        var vars = new air.URLVariables;
-                        vars.id = this.credentials.id;
-                        vars.pass = pass;
-                        vars.ver = settings.protocolVersion;
-                        req.data = vars;
-
-                        if (settings.debug) air.trace(vars.toString());
-
-                        req.method = air.URLRequestMethod.POST;
-                        req.cacheResponse = false; req.useCache = false;
-                        this.updateRequest = req;
+                        delete this.updateRequest.data.requestkey;
+                        this.updateRequest.data.pass = pass;
+                        if (settings.debug) air.trace(this.updateRequest.data.toString());
 
                         delete this.credentials;
                         this.phase = "main";
