@@ -15,6 +15,8 @@ nativeApplication.addEventListener(air.InvokeEvent.INVOKE, invokeEvent);
 
 /* -- PHASE 2: INITIALISATION -- */
 
+var updater;
+
 function appInit () {
 	// Set up the initial application environment and define settings
 	if (settings.debug) {
@@ -30,6 +32,15 @@ function appInit () {
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
+
+    // Initialise update framework
+    updater = new air.ApplicationUpdaterUI;
+    if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
+    else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
+    updater.isCheckForUpdateVisible = false;
+    updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) { event.target.checkNow(); });
+    
+    updater.initialize();
 
 	appStart();
 }
