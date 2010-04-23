@@ -1,6 +1,7 @@
 <?php
-$version = '2.6.10';
-$air = 'http://joo.freehostia.com/cantrspy/cantrspy_2_6_10.air';
+$air_path = 'http://cantrspy2.googlecode.com/svn/trunk/published/';
+$version = '2.6.9';
+$air = $air_path . 'cantrspy_2_6_9.air';
 $option = key($_GET);
 if ($option === 'update') {
     $notes = file_get_contents('changes.log');
@@ -15,8 +16,7 @@ if ($option === 'update') {
         $m = array();
         if (preg_match('/^(\d+)[_\.](\d+)[_\.](\d+)$/', $option, $m) !== 1) die;
         $air = 'cantrspy_'.$m[1].'_'.$m[2].'_'.$m[3].'.air';
-        if (!file_exists($air)) die;
-        $air = 'http://joo.freehostia.com/cantrspy/'.$air;
+        $air = $air_path . $air;
         $version = $m[1].'.'.$m[2].'.'.$m[3];
     }
     echo <<<•

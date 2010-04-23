@@ -1,5 +1,5 @@
 ﻿Version 2.6.9
-    + Implemented an automated update checking process and interface.
+    + Implemented the ApplicationUpdaterUI class to allow automated update checking. Currently the application will check for an updated version every time it is launched.
 
 Version 2.6.8
     - Made a correction to the way server requests are made.
