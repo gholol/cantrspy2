@@ -10,7 +10,6 @@ function invokeEvent (event) {
 
 	appInit();
 }
-
 nativeApplication.addEventListener(air.InvokeEvent.INVOKE, invokeEvent);
 
 /* -- PHASE 2: INITIALISATION -- */
@@ -18,6 +17,11 @@ nativeApplication.addEventListener(air.InvokeEvent.INVOKE, invokeEvent);
 var updater;
 
 function appInit () {
+    // Initiate garbage collection process
+    window.setInterval(function () {
+        air.System.gc();
+    }, Math.floor(settings.updateInterval / 2));
+    
 	// Set up the initial application environment and define settings
 	if (settings.debug) {
 		settings.server = "localhost";
@@ -28,19 +32,21 @@ function appInit () {
 	}
 	settings.protocolVersion = "1.1.0.";
     settings.clickThreshold = 500;
+    settings.showTicks = true;
 
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
-
-    // Initialise update framework
-    updater = new air.ApplicationUpdaterUI;
-    if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
-    else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
-    updater.isCheckForUpdateVisible = false;
-    updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) { event.target.checkNow(); });
     
-    updater.initialize();
+    if (!settings.debug) {
+        // Initialise update framework
+        updater = new air.ApplicationUpdaterUI;
+        if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
+        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
+        updater.isCheckForUpdateVisible = false;
+        updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) { event.target.checkNow(); });
+        updater.initialize()
+    }
 
 	appStart();
 }
@@ -49,7 +55,7 @@ var credentials; // Holder for authentication data from login window
 
 /* -- PHASE 3: USER AUTHENTICATION -- */
 
-function appStart () {
+function appStart () {    
     // Look for previously saved credentials
     var data = air.EncryptedLocalStore.getItem("credentials");
     if (data !== null) {
@@ -91,6 +97,17 @@ function loginEvent () {
 	requestManager.playerPage.initialise(credentials);
 	delete credentials;
 }
+nativeApplication.addEventListener("login", loginEvent);
+
+function showTicks () {
+    if ("tickTimings" in windowManager) return;
+    var ticksWindow = windowManager.createWindow("tickTimings", "ticks.htm");
+    ticksWindow.addEventListener(air.Event.CLOSE, function () {
+        menuManager.appIcon.enable("tickTimings");
+    });
+    menuManager.appIcon.disable("tickTimings");
+}
+nativeApplication.addEventListener("showTicks", showTicks);
 
 function logout () {
     nativeApplication.dispatchEvent(new air.Event("logout"));
@@ -98,10 +115,10 @@ function logout () {
     windowManager.createWindow("login", "login.htm");
 }
 
-nativeApplication.addEventListener("login", loginEvent);
 
 /* -- FINAL PHASE: APPLICATION SHUTDOWN -- */
 
 function appExit () {
 	nativeApplication.exit();
 }
+nativeApplication.addEventListener("appExit", appExit);

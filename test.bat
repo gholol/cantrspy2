@@ -1,1 +1,1 @@
-adl application.xml
+..\..\SDK\bin\adl application.xml
