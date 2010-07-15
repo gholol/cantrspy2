@@ -38,22 +38,46 @@ function appInit () {
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
     
-    if (!settings.debug) {
-        // Initialise update framework
-        updater = new air.ApplicationUpdaterUI;
-        if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
-        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
-        updater.isCheckForUpdateVisible = false;
-        updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) { event.target.checkNow(); });
-        updater.initialize()
-    }
+    // Initialise update framework
+    if (configurationManager.get("autoUpdate", true)) checkForUpdate(false);
 
 	appStart();
 }
 
-var credentials; // Holder for authentication data from login window
+function checkForUpdate (visible) {
+    // Initialise updater object if it does not exist
+    var creating = (updater === undefined);
+    if (creating) {
+        updater = new air.ApplicationUpdaterUI;
+        if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
+        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
+        updater.addEventListener("updateStatus", function (event) { nativeApplication.dispatchEvent(event); });
+        updater.addEventListener("updateError", function (event) { nativeApplication.dispatchEvent(event); });
+        updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) {
+            event.target.removeEventListener(event.type, arguments.callee);
+            updater.checkNow();
+        });
+    }
+    
+    // Set up user interface based on parameters
+    updater.isCheckForUpdateVisible = false;
+    updater.addEventListener(air.StatusUpdateEvent.UPDATE_STATUS, function (event) {
+        updater.removeEventListener(event.type, arguments.callee);
+        updater.isCheckForUpdateVisible = visible;
+    });
+    
+    // Begin update sequence
+    if (creating) updater.initialize();
+    else if (!updater.hasEventListener(air.UpdateEvent.INITIALIZED)) {
+        if (updater.isUpdateInProgress) updater.cancelUpdate();
+        updater.checkNow();
+    }
+}
+nativeApplication.addEventListener("checkForUpdate", function () { checkForUpdate(true); });
 
 /* -- PHASE 3: USER AUTHENTICATION -- */
+
+var credentials; // Holder for authentication data from login window
 
 function appStart () {    
     // Look for previously saved credentials
@@ -100,14 +124,22 @@ function loginEvent () {
 nativeApplication.addEventListener("login", loginEvent);
 
 function showTicks () {
-    if ("tickTimings" in windowManager) return;
-    var ticksWindow = windowManager.createWindow("tickTimings", "ticks.htm");
-    ticksWindow.addEventListener(air.Event.CLOSE, function () {
-        menuManager.appIcon.enable("tickTimings");
-    });
-    menuManager.appIcon.disable("tickTimings");
+    if ("tickTimings" in windowManager) {
+        windowManager.tickTimings.activate();
+    } else {
+        windowManager.createWindow("tickTimings", "ticks.htm");
+    }
 }
 nativeApplication.addEventListener("showTicks", showTicks);
+
+function showSettings () {
+    if ("settings" in windowManager) {
+        windowManager.settings.activate();
+    } else {
+        windowManager.createWindow("settings", "settings.htm");
+    }
+}
+nativeApplication.addEventListener("showSettings", showSettings);
 
 function logout () {
     nativeApplication.dispatchEvent(new air.Event("logout"));

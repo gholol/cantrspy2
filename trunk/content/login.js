@@ -1,10 +1,11 @@
 ﻿var main = window.opener, statusText;
 
-nativeWindow.addEventListener(air.Event.CLOSING, function (event) {
-    // Exit the application when this window is closed by the user
+// Exit the application when this window is closed by the user
+function closingEvent (event) {
     event.stopPropagation();
     nativeApplication.dispatchEvent(new air.Event("appExit"));
-});
+}
+nativeWindow.addEventListener(air.Event.CLOSING, closingEvent, false, 1);
 
 window.onload = function () {
 	// Load localised strings
@@ -18,17 +19,6 @@ window.onload = function () {
 	nativeWindow.stage.stageHeight = container.offsetHeight;
 	nativeWindow.x = mainScreen.bounds.x + ((mainScreen.bounds.width - nativeWindow.width) / 2);
 	nativeWindow.y = mainScreen.bounds.y + ((mainScreen.bounds.height - nativeWindow.height) / 2);
-
-    // Initialise autoRun checkbox
-    try {
-        autoRun.checked = nativeApplication.startAtLogin;
-        autoRun.onchange = function () {
-            nativeApplication.startAtLogin = this.checked;
-        };
-    }
-    catch (error) {
-        autoRun.disabled = true;
-    }
 
     // Obtain stored user credentials, if applicable
     // and initialise rememberDetails checkbox
@@ -50,10 +40,15 @@ window.onload = function () {
         if (!this.checked) air.EncryptedLocalStore.removeItem("credentials");
     }
 
+    // Initialise form elements
     if (!playerID.value.length) { playerID.focus(); }
     else if (!password.value.length) { password.focus(); }
 
 	mainForm.onsubmit = loginEvent;
+    
+    settings.onclick = function () {
+        nativeApplication.dispatchEvent(new air.Event("showSettings"));
+    };
     
     // Show window
 	nativeWindow.activate();
@@ -88,9 +83,8 @@ function loginEvent () {
 }
 
 // Handle successful login
-nativeWindow.addEventListener("successfulLogin", function () {
-    nativeWindow.dispatchEvent(new air.Event("closeWindow"));
-});
+function successfulLoginEvent () { nativeWindow.dispatchEvent(new air.Event("closeWindow")); }
+nativeWindow.addEventListener("successfulLogin", successfulLoginEvent);
 
 // Handle failed login
 nativeWindow.addEventListener("badLogin", function () {

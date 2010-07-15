@@ -13,7 +13,9 @@ var windowManager = {
         this[name] = loader.window.nativeWindow;
         loader.window.opener = window;
         loader.window.nativeWindow.addEventListener("closeWindow", eventHandler(this, "closeWindow"))
-        loader.window.nativeWindow.addEventListener(air.Event.CLOSING, eventHandler(this, "closeWindow"), false, -1)
+        loader.window.nativeWindow.addEventListener(air.Event.CLOSING, function (event) {
+            event.target.dispatchEvent(new air.Event("closeWindow"));
+        })
         loader.load(new air.URLRequest(url));
         return loader.window.nativeWindow;
     },
@@ -147,13 +149,9 @@ var updateManager = {
                         var list = data.substr(8);
                         if (list.length) {
                             // One or more character names were returned
-                            iconManager.initialise();
                             var names = list.split("\n");
-                            if (names.length in iconManager.icons) {
-                                iconManager.setIcon(names.length);
-                            } else {
-                                iconManager.setIcon("alert");
-                            }
+                            if (names.length > 15) iconManager.setIcon("alert");
+                            else iconManager.setIcon(names.length);
                             var primary = names.join(", ");
                             var secondary = localizer.getString("trayTooltips", "numChars", [names.length]);
                             iconManager.setTooltip(primary, secondary);
@@ -201,69 +199,89 @@ var updateManager = {
 };
 
 /* Object menuManager
+ *   Object appIcon
+ *     void setMenu(context)
+ *     void refresh()
+ *     void enable(name)
+ *     void disable(name)
  */
-var menuManager = {
-    appIcon: {
-        setMenu: function (context) {
-            var menu = new air.NativeMenu;
-            menu.addEventListener(air.Event.SELECT, eventHandler(this, "iconMenuSelectEvent"));
+var menuManager = new function () {
 
-            var i;
-            if (context == "main") {
-                // Open player page
-                i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
-                i.name = "openPlayerPage";
-                menu.addItem(i);
+    // Application icon context menu
+    this.appIcon = new function () {
+        nativeApplication.icon.menu = new air.NativeMenu;
+        nativeApplication.icon.menu.addEventListener(air.Event.SELECT, eventHandler(this, "iconMenuSelectEvent"));
+        
+        this.currentContext = null;
+    
+        this.setMenu = function (context) {
+            this.currentContext = context;
+            nativeApplication.icon.menu.removeAllItems();
 
-                // Update now
-                i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
-                i.name = "updateNow";
-                menu.addItem(i);
-
-                // Logout
-                i = new air.NativeMenuItem(localizer.getString("trayMenu", "logout"));
-                i.name = "logout";
-                menu.addItem(i);
-            }
-            if (settings.showTicks && ((context == "main") || (context == "locked"))) {
+            if (context !== null) {
+                var i;
                 if (context == "main") {
+                    // Open player page
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
+                    i.name = "openPlayerPage";
+                    nativeApplication.icon.menu.addItem(i);
+
+                    // Update now
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
+                    i.name = "updateNow";
+                    nativeApplication.icon.menu.addItem(i);
+
+                    // Logout
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "logout"));
+                    i.name = "logout";
+                    nativeApplication.icon.menu.addItem(i);
+                    
+                    // Settings
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "settings"));
+                    i.name = "settings";
+                    nativeApplication.icon.menu.addItem(i);
+                }
+                if (configurationManager.get("showTicks", false)) {
                     // divider
                     i = new air.NativeMenuItem("", true);
-                    menu.addItem(i);
-                }
+                    nativeApplication.icon.menu.addItem(i);
 
-                // Tick timings
-                i = new air.NativeMenuItem(localizer.getString("trayMenu", "tickTimings"));
-                i.name = "tickTimings";
-                i.enabled = !("tickTimings" in windowManager);
-                menu.addItem(i);
-            }
-            if (air.NativeApplication.supportsSystemTrayIcon) {
-                if ((context == "main") || settings.showTicks) {
+                    // Tick timings
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "tickTimings"));
+                    i.name = "tickTimings";
+                    i.enabled = !("tickTimings" in windowManager);
+                    nativeApplication.icon.menu.addItem(i);
+                }
+                if (air.NativeApplication.supportsSystemTrayIcon) {
                     // divider
                     i = new air.NativeMenuItem("", true);
-                    menu.addItem(i);
+                    nativeApplication.icon.menu.addItem(i);
+                    
+                    // Exit
+                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "exit"));
+                    i.name = "exit";
+                    nativeApplication.icon.menu.addItem(i);
                 }
-                // Exit
-                i = new air.NativeMenuItem(localizer.getString("trayMenu", "exit"));
-                i.name = "exit";
-                menu.addItem(i);
             }
+        };
+        
+        this.refresh = function () {
+            this.setMenu(this.currentContext);
+        }
 
-            nativeApplication.icon.menu = menu;
-        },
-
-        enable: function (name) {
+        this.enable = function (name) {
+            // Enable a named menu item
             var item = nativeApplication.icon.menu.getItemByName(name);
             if (item !== null) item.enabled = true;
-        },
+        };
 
-        disable: function (name) {
+        this.disable = function (name) {
+            // Disable a named menu item
             var item = nativeApplication.icon.menu.getItemByName(name);
             if (item !== null) item.enabled = false;
-        },
+        };
 
-        iconMenuSelectEvent: function (event) {
+        this.iconMenuSelectEvent = function (event) {
             // Responds to the selection of an icon menu item
             switch (event.target.name) {
                 case "openPlayerPage":
@@ -278,6 +296,10 @@ var menuManager = {
                     logout();
                     break;
                 
+                case "settings":
+                    showSettings();
+                    break;
+                
                 case "tickTimings":
                     showTicks();
                     break;
@@ -285,114 +307,103 @@ var menuManager = {
                 case "exit":
                     appExit();
             }
-        }
-    }
+        };
+    };
 };
 
 /* Object iconManager
  *   void setIcon(String name)
  *   void setTooltip(String primary, String secondary)
+ *   void refresh()
  */
-var iconManager = {
+var iconManager = new function () {
 
-    clickTimer: null,
+    // Initialise miscellaneous properties
+    this.clickTimer = null; // timeout handle used to detect double-clicks
+    this.request = new air.URLRequest; // URLRequest instance to be reused
+    this.spareLoaders = Array(); // Already created loaders to be reused
+    this.activeLoaders = Array(); // Loaders currently performing a download
+    this.completed = Array(); // BitmapData instances which have been downloaded
+    this.currentIcon = null; // Name of currently displayed icon
+    this.nextIcon = null; // Icon to load after current loading is finished
+    this.currentStyle = null; // Style of currently displayed icon
 
-    initialise: function () {
-        // Prepares the object and initiates the loading of all icon files.
-        if (!arguments.callee.called) {
-            // Stop function from being called again
-            arguments.callee.called = true;
-            // Add handler for tray icon clicks
-            if (air.NativeApplication.supportsSystemTrayIcon)
-                nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, eventHandler(this, "click"));
-            // Initialise miscellaneous properties
-            this.request = new air.URLRequest; // URLRequest instance to be reused
-            this.spareLoaders = Array(); // Already created loaders to be reused
-            this.activeLoaders = Array(); // Loaders currently performing a download
-            this.completed = Array(); // BitmapData instances which have been downloaded
-            this.currentIcon = null; // Name of currently displayed icon
-            this.nextIcon = null; // Icon to load after current loading is finished
-        }
-    },
-
-    click: function () {
-        if (this.clickTimer === null) {
-            function clickTimeout () {
-                iconManager.clickTimer = null;
-                iconManager.singleClick();
-            }
-            this.clickTimer = window.setTimeout(clickTimeout, settings.clickThreshold);
-        } else {
-            window.clearTimeout(this.clickTimer);
-            this.clickTimer = null;
-            this.doubleClick();
-        }
-    },
-
-    singleClick: function () {
-        // Update now
-        updateManager.userUpdate();
-    },
-
-    doubleClick: function () {
-        // Open player page
-        requestManager.playerPage.open();
-    },
-
-    setIcon: function (name) {
+    this.setIcon = function (name) {
         // Sets the array of icons specified by a string as the current tray icon.
         // If the icons have not finished loading, they will be set when they do.
-        this.initialise();
-        if (name !== this.currentIcon) {
-            if (this.activeLoaders.length != 0) {
-                // Due to an apparent bug in air.Loader.close(), it is impossible to stop Loader objects
-                // from progressing once they have been started; therefore, in the case that a new icon is
-                // set while a previous one is still loading, the loading of the new icon will be delayed
-                // until after the current one finishes.
-                this.nextIcon = name;
+        
+        if (this.activeLoaders.length != 0) {
+            // Due to an apparent bug in air.Loader.close(), it is impossible to stop Loader objects
+            // from progressing once they have been started; therefore, in the case that a new icon is
+            // set while a previous one is still loading, the loading of the new icon will be delayed
+            // until after the current one finishes.
+            this.nextIcon = name;
+            return;
+        }
+
+        // If no icon is currently loaded, the requested icon can be loaded as normal
+        var iconStyle = configurationManager.get("iconStyle", "circle");
+        if ((name !== this.currentIcon) || (iconStyle !== this.currentStyle)) {
+            var currentStyle = iconStyle;
+            var sizes = new air.File("app:/icons/" + iconStyle + "/" + name);
+            if (sizes.exists) {
+                // The named icon exists; begin loading the corresponding files
+                this.currentIcon = name;
+                sizes = sizes.getDirectoryListing();
+                for (var index in sizes) {
+                    // Create a new Loader if no spares are available, otherwise use a spare Loader
+                    if (this.spareLoaders.length == 0) {
+                        loader = new air.Loader;
+                        loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, eventHandler(this, "loadComplete"));
+                        loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "loadFailed"));
+                    } else var loader = this.spareLoaders.pop();
+                    // Initiate loading of the icon file
+                    this.request.url = sizes[index].url;
+                    loader.load(this.request);
+                    this.activeLoaders.push(loader);
+                }
             }
             else {
-                var fileName = "app:/icons/" + configurationManager.get("iconStyle", "circle") + ;
-                if (name in this.icons) {
-                    // The named icon exists; begin loading the corresponding files
-                    this.currentIcon = name;
-                    for (var index in this.icons[name]) {
-                        // Create a new Loader if no spares are available, otherwise use a spare Loader
-                        if (this.spareLoaders.length == 0) {
-                            loader = new air.Loader;
-                            loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, eventHandler(this, "loadComplete"));
-                            loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "loadFailed"));
-                        } else var loader = this.spareLoaders.pop();
-                        // Initiate loading of the icon file
-                        this.request.url = "app:/icons/" + this.icons[name][index];
-                        loader.load(this.request);
-                        this.activeLoaders.push(loader);
-                    }
-                }
-                else {
-                    // No existing icon is identified, so display no icon
-                    this.currentIcon = null;
-                    var bitmaps = nativeApplication.icon.bitmaps;
-                    while (bitmaps.length != 0) bitmaps.pop().dispose();
-                    nativeApplication.icon.bitmaps = bitmaps;
-                }
+                // No existing icon is identified, so display no icon
+                this.currentIcon = null;
+                var bitmaps = nativeApplication.icon.bitmaps;
+                while (bitmaps.length != 0) bitmaps.pop().dispose();
+                nativeApplication.icon.bitmaps = bitmaps;
             }
         }
-    },
+    };
 
-    loadComplete: function (event) {
+    this.setTooltip = function (primary, secondary) {
+        // If supported, sets the tooltip string of the system tray icon
+        // If the primary string is too long, the optional secondary string is used instead
+        if (air.NativeApplication.supportsSystemTrayIcon) {
+            if ((primary.length > air.SystemTrayIcon.MAX_TIP_LENGTH) && (secondary !== undefined)) {
+                nativeApplication.icon.tooltip = secondary;
+            } else {
+                nativeApplication.icon.tooltip = primary;
+            }
+        }
+    };
+    
+    this.refresh = function (newStyle) {
+        // When the iconStyle configuration entry is changed, this function can be called
+        // to immediately load the new style of icon
+        this.setIcon(this.nextIcon || this.currentIcon);
+    };
+
+    this.loadComplete = function (event) {
         // Handles the completed loading of a single icon file.
         this.completed.push(event.target.content.bitmapData);
         event.target.loader.unload();
         this.loadFinished(event.target.loader);
-    },
+    };
 
-    loadFailed: function (event) {
+    this.loadFailed = function (event) {
         // Handles the failure of an icon file to load.
         this.loadFinished(event.target.loader);
-    },
+    };
 
-    loadFinished: function (loader) {
+    this.loadFinished = function (loader) {
         // Called by either loadComplete or loadFailed after a successful or failed load
         this.activeLoaders.splice(this.activeLoaders.indexOf(loader), 1);
         this.spareLoaders.push(loader);
@@ -407,18 +418,33 @@ var iconManager = {
                 this.nextIcon = null;
             }
         }
-    },
+    };
 
-    setTooltip: function (primary, secondary) {
-        // If supported, sets the tooltip string of the system tray icon
-        // If the primary string is too long, the optional secondary string is used instead
-        if (air.NativeApplication.supportsSystemTrayIcon) {
-            if ((primary.length > air.SystemTrayIcon.MAX_TIP_LENGTH) && (secondary !== undefined)) {
-                nativeApplication.icon.tooltip = secondary;
+    if (air.NativeApplication.supportsSystemTrayIcon) {
+        this.click = function () {
+            if (this.clickTimer === null) {
+                function clickTimeout () {
+                    iconManager.clickTimer = null;
+                    iconManager.singleClick();
+                }
+                this.clickTimer = window.setTimeout(clickTimeout, settings.clickThreshold);
             } else {
-                nativeApplication.icon.tooltip = primary;
+                window.clearTimeout(this.clickTimer);
+                this.clickTimer = null;
+                this.doubleClick();
             }
-        }
+        };
+        nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, eventHandler(this, "click"));
+
+        this.singleClick = function () {
+            // Update now
+            updateManager.userUpdate();
+        };
+
+        this.doubleClick = function () {
+            // Open player page
+            requestManager.playerPage.open();
+        };
     }
 
 };
@@ -493,8 +519,8 @@ var requestManager = {
 };
 
 /* Object configurationManager
- *   void set(any name, any value, Boolean asynchronous = false)
- *   any get(any name)
+ *   void set(any name = undefined, any value, Boolean asynchronous = false)
+ *   any get(any name, any defaultValue = undefined)
  */
 var configurationManager = new function () {
     // Extend EventDispatcher class
@@ -534,14 +560,16 @@ var configurationManager = new function () {
         this.buffer = new Object;
     }
     
-    this.get = function (name) {
-        // Read a configuration entry
-        // Returns undefined if the entry does not exist
+    this.get = function (name, defaultValue) {
+        // Reads the value associated with a configuration entry name
+        // Returns defaultValue if the entry does not exist
+        // or undefined if neither exist
+        if (!(name in this.buffer)) return defaultValue;
         return this.buffer[name];
     };
     
     this.set = function (name, value, asynchronous) {
-        // Write a configuration entry
+        // Writes a configuration entry
         // If value is not specified, the entry is deleted
         if (value === undefined) delete this.buffer[name];
         else this.buffer[name] = value;
