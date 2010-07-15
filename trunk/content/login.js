@@ -1,5 +1,11 @@
 ﻿var main = window.opener, statusText;
 
+nativeWindow.addEventListener(air.Event.CLOSING, function (event) {
+    // Exit the application when this window is closed by the user
+    event.stopPropagation();
+    nativeApplication.dispatchEvent(new air.Event("appExit"));
+});
+
 window.onload = function () {
 	// Load localised strings
 	localizer.update();
@@ -10,9 +16,8 @@ window.onload = function () {
 	// Resize to fit content and centre in screen
 	nativeWindow.stage.stageWidth = container.offsetWidth;
 	nativeWindow.stage.stageHeight = container.offsetHeight;
-	var boundary = air.Screen.mainScreen.bounds;
-	nativeWindow.x = boundary.x + ((boundary.width - nativeWindow.width) / 2);
-	nativeWindow.y = boundary.y + ((boundary.height - nativeWindow.height) / 2);
+	nativeWindow.x = mainScreen.bounds.x + ((mainScreen.bounds.width - nativeWindow.width) / 2);
+	nativeWindow.y = mainScreen.bounds.y + ((mainScreen.bounds.height - nativeWindow.height) / 2);
 
     // Initialise autoRun checkbox
     try {
@@ -42,15 +47,15 @@ window.onload = function () {
         }
     }
     rememberDetails.onchange = function () {
-        if (!this.checked) {
-            air.EncryptedLocalStore.removeItem("credentials");
-        }
+        if (!this.checked) air.EncryptedLocalStore.removeItem("credentials");
     }
 
     if (!playerID.value.length) { playerID.focus(); }
     else if (!password.value.length) { password.focus(); }
 
 	mainForm.onsubmit = loginEvent;
+    
+    // Show window
 	nativeWindow.activate();
 }
 
@@ -83,19 +88,16 @@ function loginEvent () {
 }
 
 // Handle successful login
-function successfulLoginEvent () {
-    // Close window
-    nativeWindow.close();
-}
-nativeWindow.addEventListener("successfulLogin", successfulLoginEvent);
+nativeWindow.addEventListener("successfulLogin", function () {
+    nativeWindow.dispatchEvent(new air.Event("closeWindow"));
+});
 
 // Handle failed login
-function badLoginEvent () {
+nativeWindow.addEventListener("badLogin", function () {
 	statusText.nodeValue = localizer.getString("loginWindow", "statusBadLogin");
 	password.value = "";
 	enableForm();
-}
-nativeWindow.addEventListener("badLogin", badLoginEvent);
+});
 
 // Utility Functions
 

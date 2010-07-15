@@ -1,1 +1,1 @@
-adl application.xml -- debug
+..\..\SDK\bin\adl application.xml -- debug

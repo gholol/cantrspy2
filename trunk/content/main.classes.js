@@ -2,40 +2,31 @@
  *   DOMWindow createWindow(String url, Number width, Number height)
  */
 var windowManager = {
-	createWindow: function (name, url) {
-		// Creates a standard window with the given dimensions and initiates loading of the given URL.
-		// Returns the created DOMWindow object.
-		var options = new air.NativeWindowInitOptions();
-		options.maximizable = false;
-		options.minimizable = true;
-		options.resizable = false;
-		var loader = air.HTMLLoader.createRootWindow(false, options, false);
+    createWindow: function (name, url) {
+        // Creates a standard window and initiates loading of the given URL.
+        // Returns the created DOMWindow object.
+        var options = new air.NativeWindowInitOptions;
+        options.maximizable = false;
+        options.minimizable = true;
+        options.resizable = false;
+        var loader = air.HTMLLoader.createRootWindow(false, options, false);
+        this[name] = loader.window.nativeWindow;
+        loader.window.opener = window;
+        loader.window.nativeWindow.addEventListener("closeWindow", eventHandler(this, "closeWindow"))
+        loader.window.nativeWindow.addEventListener(air.Event.CLOSING, eventHandler(this, "closeWindow"), false, -1)
+        loader.load(new air.URLRequest(url));
+        return loader.window.nativeWindow;
+    },
 
-		loader.window.opener = window;
-		function windowClosingEvent (event) { windowManager.windowClosingEvent(event); }
-		loader.window.nativeWindow.addEventListener(air.Event.CLOSING, windowClosingEvent);
-		loader.load(new air.URLRequest(url));
-
-		this[name] = loader.window;
-		function windowCloseEvent (event) { windowManager.windowCloseEvent(event); }
-		loader.window.nativeWindow.addEventListener(air.Event.CLOSE, windowCloseEvent);
-
-		return loader.window;
-	},
-
-	windowClosingEvent: function (event) {
-		// Exits the application if the user closes a created window.
-		appExit();
-	},
-
-	windowCloseEvent: function (event) {
-		// Removes a reference to a window if it has been closed
-		for (var name in this) {
-			if ("nativeWindow" in this[name]) {
-				if (this[name].nativeWindow === event.target) { delete this[name]; }
-			}
-		}
-	}
+    closeWindow: function (event) {
+        // Removes a reference to a window if it has been closed
+        for (var index in this) {
+            if (this[index] == event.target) {
+                delete this[index];
+                event.target.close();
+            }
+        }
+    }
 
 };
 
@@ -45,42 +36,47 @@ var windowManager = {
  */
 var updateManager = {
 
-	destroy: function () {
-		window.clearInterval(this.interval);
-		delete this.interval;
+    destroy: function () {
+        window.clearInterval(this.interval);
         delete this.credentials;
         delete this.phase;
         delete this.status;
-		delete this.updateRequest;
-	},
+        if (this.status = "updating") this.updateLoader.close();
+    },
 
-	initialise: function (aCredentials) {
-		// Set to destroy on logout
-		var logoutEvent = function () {
-			updateManager.destroy();
-			nativeApplication.removeEventListener("logout", arguments.callee);
-		};
-		nativeApplication.addEventListener("logout", logoutEvent);
-
+    initialise: function (aCredentials) {
+        if (!(arguments.callee.called)) {
+            // Stop from calling again
+            arguments.callee.called = true;
+            // Set to destroy on logout
+            nativeApplication.addEventListener("logout", eventHandler(this, function (event) {
+                this.destroy();
+                nativeApplication.removeEventListener(event.type, arguments.callee.caller);
+            }));
+            // Initialise URLRequest
+            this.updateRequest = new air.URLRequest("http://" + settings.server + "/app.getevents2.php");
+            this.updateRequest.cacheResponse = this.updateRequest.useCache = false;
+            this.updateRequest.data = new air.URLVariables;
+            this.updateRequest.data.ver = settings.protocolVersion;
+            // Initialise URLLoader
+            this.updateLoader = new air.URLLoader;
+            this.updateLoader.dataFormat = air.URLLoaderDataFormat.TEXT;
+            this.updateLoader.addEventListener(air.Event.COMPLETE, eventHandler(this, "updateEvent"));
+            this.updateLoader.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "updateEvent"));
+            this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, eventHandler(this, "updateEvent"));
+        }
+        
         // Retrieve a public key from the server to initialise an update session
         this.credentials = aCredentials;
 
-        var req = new air.URLRequest;
-        req.url = "http://" + settings.server + "/app.getevents2.php";
-        var vars = new air.URLVariables;
-        vars.id = this.credentials.id;
-        vars.ver = settings.protocolVersion;
-        vars.requestkey = "1";
-        req.data = vars;
-        if (settings.debug) air.trace(vars.toString());
+        if ('pass' in this.updateRequest.data) delete this.updateRequest.data.pass;
+        this.updateRequest.data.id = this.credentials.id;
+        this.updateRequest.data.requestkey = "1";
         
-        req.cacheResponse = false; req.useCache = false;
-        this.updateRequest = req;
-
         this.phase = "requesting_key";
         this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
         this.update();
-	},
+    },
 
     userUpdate: function () {
         if ((this.status == "idle") && (this.phase = "main")) {
@@ -97,26 +93,15 @@ var updateManager = {
         }
     },
 
-	update: function () {
-		// Begin a new update request
-		var loader = new air.URLLoader();
-		loader.dataFormat = air.URLLoaderDataFormat.TEXT;
-
-		function updateEvent (event) { updateManager.updateEvent(event); }
-		loader.addEventListener(air.Event.COMPLETE, updateEvent);
-		loader.addEventListener(air.IOErrorEvent.IO_ERROR, updateEvent);
-		loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, updateEvent);
-
-		loader.load(this.updateRequest);
-		this.updateLoader = loader;
-
+    update: function () {
+        // Begin a new update request
         this.status = "updating";
         menuManager.appIcon.disable("updateNow");
-	},
+        this.updateLoader.load(this.updateRequest);
+    },
 
-	updateEvent: function (event) {
-		// Handle an event from the HTTPLoader
-
+    updateEvent: function (event) {
+        // Handle an event from the HTTPLoader
         switch (event.type) {
             case air.IOErrorEvent.IO_ERROR: case air.SecurityErrorEvent.SECURITY_ERROR:
                 // A transmission error occured
@@ -131,7 +116,7 @@ var updateManager = {
                 break;
 
             case air.Event.COMPLETE:
-                var data = updateManager.updateLoader.data;
+                var data = event.target.data;
                 if (this.phase == "requesting_key") {
                     try {
                         try {
@@ -143,7 +128,6 @@ var updateManager = {
 
                         delete this.updateRequest.data.requestkey;
                         this.updateRequest.data.pass = pass;
-                        if (settings.debug) air.trace(this.updateRequest.data.toString());
 
                         delete this.credentials;
                         this.phase = "main";
@@ -181,7 +165,7 @@ var updateManager = {
                     } else if ((data == "BAD LOGIN") || (data == "ERROR Hacking attempt")) {
                         // The login details were incorrect
                         if ("login" in windowManager) {
-                            windowManager.login.nativeWindow.dispatchEvent(new air.Event("badLogin"));
+                            windowManager.login.dispatchEvent(new air.Event("badLogin"));
                             this.destroy();
                         } else {
                             iconManager.setIcon("error");
@@ -207,60 +191,67 @@ var updateManager = {
 
         // Manage the opened login window
         if (("login" in windowManager) && !badLogin) {
-            windowManager.login.nativeWindow.dispatchEvent(new air.Event("successfulLogin"));
+            windowManager.login.dispatchEvent(new air.Event("successfulLogin"));
         }
 
         this.status = "idle";
         menuManager.appIcon.enable("updateNow");
-	}
+    }
 
 };
 
 /* Object menuManager
  */
 var menuManager = {
-	appIcon: {
-		setMenu: function (context) {
-			var menu = new air.NativeMenu();
-			function iconMenuSelectEvent (event) { menuManager.appIcon.iconMenuSelectEvent(event); }
-			menu.addEventListener(air.Event.SELECT, iconMenuSelectEvent);
+    appIcon: {
+        setMenu: function (context) {
+            var menu = new air.NativeMenu;
+            menu.addEventListener(air.Event.SELECT, eventHandler(this, "iconMenuSelectEvent"));
 
-			var i;
-			switch (context) {
-				case "main":
-                    // Open player page
-					i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
-					i.name = "openPlayerPage";
-					menu.addItem(i);
+            var i;
+            if (context == "main") {
+                // Open player page
+                i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
+                i.name = "openPlayerPage";
+                menu.addItem(i);
 
-                    // Update now
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
-                    i.name = "updateNow";
+                // Update now
+                i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
+                i.name = "updateNow";
+                menu.addItem(i);
+
+                // Logout
+                i = new air.NativeMenuItem(localizer.getString("trayMenu", "logout"));
+                i.name = "logout";
+                menu.addItem(i);
+            }
+            if (settings.showTicks && ((context == "main") || (context == "locked"))) {
+                if (context == "main") {
+                    // divider
+                    i = new air.NativeMenuItem("", true);
                     menu.addItem(i);
+                }
 
-                    // Logout
-					i = new air.NativeMenuItem(localizer.getString("trayMenu", "logout"));
-					i.name = "logout";
-					menu.addItem(i);
+                // Tick timings
+                i = new air.NativeMenuItem(localizer.getString("trayMenu", "tickTimings"));
+                i.name = "tickTimings";
+                i.enabled = !("tickTimings" in windowManager);
+                menu.addItem(i);
+            }
+            if (air.NativeApplication.supportsSystemTrayIcon) {
+                if ((context == "main") || settings.showTicks) {
+                    // divider
+                    i = new air.NativeMenuItem("", true);
+                    menu.addItem(i);
+                }
+                // Exit
+                i = new air.NativeMenuItem(localizer.getString("trayMenu", "exit"));
+                i.name = "exit";
+                menu.addItem(i);
+            }
 
-					if (air.NativeApplication.supportsSystemTrayIcon) {
-                        // divider
-						i = new air.NativeMenuItem("", true);
-						menu.addItem(i);
-					}
-
-                case "locked":
-                    if (air.NativeApplication.supportsSystemTrayIcon) {
-                        // Exit
-						i = new air.NativeMenuItem(localizer.getString("trayMenu", "exit"));
-						i.name = "exit";
-						menu.addItem(i);
-					}
-
-			}
-
-			nativeApplication.icon.menu = menu;
-		},
+            nativeApplication.icon.menu = menu;
+        },
 
         enable: function (name) {
             var item = nativeApplication.icon.menu.getItemByName(name);
@@ -272,26 +263,30 @@ var menuManager = {
             if (item !== null) item.enabled = false;
         },
 
-		iconMenuSelectEvent: function (event) {
-			// Responds to the selection of an icon menu item
-			switch (event.target.name) {
-				case "openPlayerPage":
-					requestManager.playerPage.open();
-					break;
+        iconMenuSelectEvent: function (event) {
+            // Responds to the selection of an icon menu item
+            switch (event.target.name) {
+                case "openPlayerPage":
+                    requestManager.playerPage.open();
+                    break;
 
                 case "updateNow":
                     updateManager.userUpdate();
                     break;
 
-				case "logout":
-					logout();
-					break;
+                case "logout":
+                    logout();
+                    break;
+                
+                case "tickTimings":
+                    showTicks();
+                    break;
 
-				case "exit":
-					appExit();
-			}
-		}
-	}
+                case "exit":
+                    appExit();
+            }
+        }
+    }
 };
 
 /* Object iconManager
@@ -300,41 +295,25 @@ var menuManager = {
  */
 var iconManager = {
 
-	initialised: false,
     clickTimer: null,
 
-	initialise: function () {
-		// Prepares the object and initiates the loading of all icon files.
-		if (!this.initialised) {
-			this.initialised = true;
-			this.icons = {
-				alert: ["alert_128.png", "alert_48.png", "alert_32.png", "alert_16.png"],
-				idle: ["idle_128.png", "idle_48.png", "idle_32.png", "idle_16.png"],
-				error: ["error_128.png", "error_48.png", "error_32.png", "error_16.png"],
-				blank: ["blank_128.png", "blank_48.png", "blank_32.png", "blank_16.png"],
-				1: ["1_128.png", "1_48.png", "1_32.png", "1_16.png"],
-				2: ["2_128.png", "2_48.png", "2_32.png", "2_16.png"],
-				3: ["3_128.png", "3_48.png", "3_32.png", "3_16.png"],
-				4: ["4_128.png", "4_48.png", "4_32.png", "4_16.png"],
-				5: ["5_128.png", "5_48.png", "5_32.png", "5_16.png"],
-				6: ["6_128.png", "6_48.png", "6_32.png", "6_16.png"],
-				7: ["7_128.png", "7_48.png", "7_32.png", "7_16.png"],
-				8: ["8_128.png", "8_48.png", "8_32.png", "8_16.png"],
-				9: ["9_128.png", "9_48.png", "9_32.png", "9_16.png"],
-				10: ["10_128.png", "10_48.png", "10_32.png", "10_16.png"],
-				11: ["11_128.png", "11_48.png", "11_32.png", "11_16.png"],
-				12: ["12_128.png", "12_48.png", "12_32.png", "12_16.png"],
-				13: ["13_128.png", "13_48.png", "13_32.png", "13_16.png"],
-				14: ["14_128.png", "14_48.png", "14_32.png", "14_16.png"],
-				15: ["15_128.png", "15_48.png", "15_32.png", "15_16.png"]
-			};
-
-            if (air.NativeApplication.supportsSystemTrayIcon) {
-                function clickEvent () { iconManager.click(); }
-                nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, clickEvent);
-            }
-		}
-	},
+    initialise: function () {
+        // Prepares the object and initiates the loading of all icon files.
+        if (!arguments.callee.called) {
+            // Stop function from being called again
+            arguments.callee.called = true;
+            // Add handler for tray icon clicks
+            if (air.NativeApplication.supportsSystemTrayIcon)
+                nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, eventHandler(this, "click"));
+            // Initialise miscellaneous properties
+            this.request = new air.URLRequest; // URLRequest instance to be reused
+            this.spareLoaders = Array(); // Already created loaders to be reused
+            this.activeLoaders = Array(); // Loaders currently performing a download
+            this.completed = Array(); // BitmapData instances which have been downloaded
+            this.currentIcon = null; // Name of currently displayed icon
+            this.nextIcon = null; // Icon to load after current loading is finished
+        }
+    },
 
     click: function () {
         if (this.clickTimer === null) {
@@ -360,131 +339,235 @@ var iconManager = {
         requestManager.playerPage.open();
     },
 
-	setIcon: function (name) {
-		// Sets the array of icons specified by a string as the current tray icon.
-		// If the icons have not finished loading, they will be set when they do.
-		this.initialise();
-		if (name !== this.active) {
-			if (name in this.icons) {
-				this.active = name;
-				this.array = [];
-				function completeEvent (event) { iconManager.loadComplete(event); }
-				for (var index in this.icons[name]) {
-					var loader = new air.Loader();
-					loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeEvent);
-					loader.load(new air.URLRequest("app:/icons/" + this.icons[name][index]));
-					this.array.push(loader);
-				}
-				this.loading = this.icons[name].length;
-			}
-			else {
-				delete this.array;
-				delete this.active;
-				nativeApplication.icon.bitmaps = [];
-			}
-		}
-	},
+    setIcon: function (name) {
+        // Sets the array of icons specified by a string as the current tray icon.
+        // If the icons have not finished loading, they will be set when they do.
+        this.initialise();
+        if (name !== this.currentIcon) {
+            if (this.activeLoaders.length != 0) {
+                // Due to an apparent bug in air.Loader.close(), it is impossible to stop Loader objects
+                // from progressing once they have been started; therefore, in the case that a new icon is
+                // set while a previous one is still loading, the loading of the new icon will be delayed
+                // until after the current one finishes.
+                this.nextIcon = name;
+            }
+            else {
+                var fileName = "app:/icons/" + configurationManager.get("iconStyle", "circle") + ;
+                if (name in this.icons) {
+                    // The named icon exists; begin loading the corresponding files
+                    this.currentIcon = name;
+                    for (var index in this.icons[name]) {
+                        // Create a new Loader if no spares are available, otherwise use a spare Loader
+                        if (this.spareLoaders.length == 0) {
+                            loader = new air.Loader;
+                            loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, eventHandler(this, "loadComplete"));
+                            loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "loadFailed"));
+                        } else var loader = this.spareLoaders.pop();
+                        // Initiate loading of the icon file
+                        this.request.url = "app:/icons/" + this.icons[name][index];
+                        loader.load(this.request);
+                        this.activeLoaders.push(loader);
+                    }
+                }
+                else {
+                    // No existing icon is identified, so display no icon
+                    this.currentIcon = null;
+                    var bitmaps = nativeApplication.icon.bitmaps;
+                    while (bitmaps.length != 0) bitmaps.pop().dispose();
+                    nativeApplication.icon.bitmaps = bitmaps;
+                }
+            }
+        }
+    },
 
-	setTooltip: function (primary, secondary) {
-		// If supported, sets the tooltip string of the system tray icon
-		// If the primary string is too long, the optional secondary string is used instead
-		if (air.NativeApplication.supportsSystemTrayIcon) {
-			if ((primary.length > air.SystemTrayIcon.MAX_TIP_LENGTH) && (secondary !== undefined)) {
-				nativeApplication.icon.tooltip = secondary;
-			} else {
-				nativeApplication.icon.tooltip = primary;
-			}
-		}
-	},
+    loadComplete: function (event) {
+        // Handles the completed loading of a single icon file.
+        this.completed.push(event.target.content.bitmapData);
+        event.target.loader.unload();
+        this.loadFinished(event.target.loader);
+    },
 
-	loadComplete: function (event) {
-		// Handles the completed loading of a single icon file.
-		event.target.removeEventListener(event.type, this.loadComplete);
-		this.loading--;
-		if (!this.loading) {
-			var bitmaps = [];
-			for (var index in this.array) {
-				bitmaps.push(this.array[index].content.bitmapData);
-			}
-			delete this.array;
-			nativeApplication.icon.bitmaps = bitmaps;
-		}
-	}
+    loadFailed: function (event) {
+        // Handles the failure of an icon file to load.
+        this.loadFinished(event.target.loader);
+    },
+
+    loadFinished: function (loader) {
+        // Called by either loadComplete or loadFailed after a successful or failed load
+        this.activeLoaders.splice(this.activeLoaders.indexOf(loader), 1);
+        this.spareLoaders.push(loader);
+        if (this.activeLoaders.length == 0) {
+            var bitmaps = nativeApplication.icon.bitmaps;
+            while (bitmaps.length) bitmaps.pop().dispose();
+            while (this.completed.length != 0) bitmaps.push(this.completed.pop());
+            nativeApplication.icon.bitmaps = bitmaps;
+            if (this.nextIcon !== null) {
+                // If a subsequent icon is queued, begin loading it
+                this.setIcon(this.nextIcon);
+                this.nextIcon = null;
+            }
+        }
+    },
+
+    setTooltip: function (primary, secondary) {
+        // If supported, sets the tooltip string of the system tray icon
+        // If the primary string is too long, the optional secondary string is used instead
+        if (air.NativeApplication.supportsSystemTrayIcon) {
+            if ((primary.length > air.SystemTrayIcon.MAX_TIP_LENGTH) && (secondary !== undefined)) {
+                nativeApplication.icon.tooltip = secondary;
+            } else {
+                nativeApplication.icon.tooltip = primary;
+            }
+        }
+    }
 
 };
 
 /* Object requestManager
  *   Object playerPage
  *     void initialise(Object credentials)
- *	   void open(NativeMenuItem item)
+ *       void open(NativeMenuItem item)
  */
 var requestManager = {
-	playerPage: {
-		initialise: function (aCredentials) {
-			// Sets the object to use the specified username and password for login request
-			// Must be called before open or after destroy
-			this.request = new air.URLRequest("http://" + settings.server + "/index.php?page=login");
-			this.request.method = air.URLRequestMethod.POST;
-			this.request.cacheResponse = false;
-			this.request.useCache = false;
-			var vars = new air.URLVariables();
-				vars.id = aCredentials.id;
-				vars.password = aCredentials.pw;
-				vars.data = "yes";
-			this.request.data = vars;
+    playerPage: {
 
-			// Set to destroy on logout
-			var logoutEvent = function () {
-				requestManager.playerPage.destroy();
-				nativeApplication.removeEventListener("logout", arguments.callee);
-			};
-			nativeApplication.addEventListener("logout", logoutEvent);
-
+        initialise: function (aCredentials) {
+            // Sets the object to use the specified username and password for login request
+            // Must be called before open or after destroy
+            
+            if (!arguments.callee.called) {
+                // Stop any subsequent executions
+                arguments.callee.called = true;
+                // Create URLRequest
+                this.request = new air.URLRequest("http://" + settings.server + "/index.php?page=login");
+                this.request.method = air.URLRequestMethod.POST;
+                this.request.cacheResponse = false;
+                this.request.useCache = false;
+                this.request.data = new air.URLVariables;
+                this.request.data.data = "yes";
+                // Create URLLoader
+                this.loader = new air.URLLoader;
+                this.loader.addEventListener(air.HTTPStatusEvent.HTTP_RESPONSE_STATUS, eventHandler(this, "httpResponse"));
+                this.loader.addEventListener(air.Event.COMPLETE, eventHandler(this, "close"));
+                this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, eventHandler(this, "close"));
+                this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "close"));
+                // Create secondary URLRequest
+                this.subRequest = new air.URLRequest;
+                this.subRequest.cacheResponse = this.subRequest.useCache = false;
+                // Set to close on logout
+                nativeApplication.addEventListener("logout", eventHandler(this, "close"));
+            }
+            
+            // Initialise URLRequest
+            this.request.data.id = aCredentials.id;
+            this.request.data.password = aCredentials.pw;
+            
             // Initialise status
             this.status = "idle";
-		},
+        },
 
-		destroy: function () {
-			// Clears all data stored in memory and stops any current request
-			this.close();
-			delete this.request;
-		},
-
-		open: function () {
+        open: function () {
             if (this.status == "idle") {
                 // Begins the process of logging in with the user's credentials
                 // and opening their player page in a new browser window
-                this.loader = new air.URLLoader();
-
-                function httpResponseEvent (event) { requestManager.playerPage.httpResponse(event); }
-                this.loader.addEventListener(air.HTTPStatusEvent.HTTP_RESPONSE_STATUS, httpResponseEvent);
-
-                function closeEvent (event) { requestManager.playerPage.close(event); }
-                this.loader.addEventListener(air.Event.COMPLETE, closeEvent);
-                this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, closeEvent);
-                this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, closeEvent);
-
                 this.loader.load(this.request);
-
                 this.status = "requesting";
                 menuManager.appIcon.disable("playerPage");
             }
-		},
+        },
 
-		httpResponse: function (event) {
-			// Handles the HTTP response from the player page request
-			if (event.status === 200) {
-				var req = new air.URLRequest(event.responseURL);
-				req.cacheResponse = false; req.useCache = false;
-				air.navigateToURL(req);
-			}
-		},
+        httpResponse: function (event) {
+            // Handles the HTTP response from the player page request
+            if (event.status == 200) {
+                this.subRequest.url = event.responseURL;
+                air.navigateToURL(this.subRequest);
+            }
+        },
 
-		close: function () {
-			// Cleans up after the HTTP request finishes
-			delete this.loader;
+        close: function () {
+            // Cleans up after the HTTP request finishes
             this.status = "idle";
             menuManager.appIcon.enable("playerPage");
-		}
-	}
+        }
+    }
+};
+
+/* Object configurationManager
+ *   void set(any name, any value, Boolean asynchronous = false)
+ *   any get(any name)
+ */
+var configurationManager = new function () {
+    // Extend EventDispatcher class
+    this.__proto__ = new air.EventDispatcher;
+
+    // Initialise resident FileStream instance
+    this.fileStream = new air.FileStream;
+    this.streamOpen = false;
+    this.openStream = function (fileMode) {
+        this.fileStream.open(this.file, fileMode);
+        this.streamOpen = true;
+    }
+    this.closeStream = function () {
+        if (this.streamOpen) {
+            this.fileStream.close()
+            this.streamOpen = false;
+        }
+    }
+    
+    // Initialise File instance corresponding to configuration file
+    this.file = air.File.applicationStorageDirectory.resolvePath("configuration.amf");
+    if (this.file.exists) {
+        // File already exists, load configuration into buffer
+        try {
+            this.openStream(air.FileMode.READ);
+            this.buffer = this.fileStream.readObject();
+            this.closeStream();
+        } catch (error) {
+            if ((error.name != "IOError") && (error.name != "EOFError")) throw error;
+            // Operation failed, delete configuration file
+            this.closeStream();
+            this.file.deleteFile();
+        }
+    }
+    if (!this.file.exists) {
+        // File does not exist (or was deleted due to an error), create an empty buffer
+        this.buffer = new Object;
+    }
+    
+    this.get = function (name) {
+        // Read a configuration entry
+        // Returns undefined if the entry does not exist
+        return this.buffer[name];
+    };
+    
+    this.set = function (name, value, asynchronous) {
+        // Write a configuration entry
+        // If value is not specified, the entry is deleted
+        if (value === undefined) delete this.buffer[name];
+        else this.buffer[name] = value;
+
+        if (asynchronous) {
+            if (!this.commitPending) {
+                this.commitPending = true;
+                window.setTimeout(eventHandler(this, "commit"), 0);
+            }
+        } else {
+            this.commitPending = true;
+            this.commit();
+        }
+    };
+
+    this.commit = function () {
+        // Writes configuration changes to file
+        if (!this.commitPending) return;
+        this.commitPending = false;
+        try {
+            this.openStream(air.FileMode.WRITE);
+            this.fileStream.writeObject(this.buffer);
+        } catch (error) {
+            if ((error.name != "IOError") && (error.name != "EOFError")) throw error;
+        } finally { this.closeStream(); }
+    };
+    this.addEventListener("commit", eventHandler(this, "commit"));
+    this.commitPending = false; // Flag indicating that a commit event has been dispatched or the commit function called
 };
