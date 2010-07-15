@@ -11,6 +11,13 @@ if ($option === 'update') {
 <version>$version</version><url>$air</url><description><![CDATA[$notes]]></description>
 </update>
 •;
+
+file_put_contents('update.log',
+$_SERVER['REQUEST_TIME'   ].' '.
+$_SERVER['REMOTE_ADDR'    ].' '.
+$_SERVER['REQUEST_URI'    ]."\n",
+FILE_APPEND);
+
 } else {
     if ($option !== null) {
         $m = array();

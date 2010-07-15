@@ -50,7 +50,7 @@ function checkForUpdate (visible) {
     if (creating) {
         updater = new air.ApplicationUpdaterUI;
         if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
-        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update";
+        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update=" + settings.version;
         updater.addEventListener("updateStatus", function (event) { nativeApplication.dispatchEvent(event); });
         updater.addEventListener("updateError", function (event) { nativeApplication.dispatchEvent(event); });
         updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) {
