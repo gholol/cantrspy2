@@ -3,7 +3,7 @@ var main = window.opener;
 window.onload = function () {
     // Initialise window position and size
 	nativeWindow.stage.stageWidth = 450;
-	nativeWindow.stage.stageHeight = 300;
+	nativeWindow.stage.stageHeight = 350;
     nativeWindow.x = main.configurationManager.get("tickTimings.windowLeft")
         || mainScreen.bounds.left + ((mainScreen.bounds.width - nativeWindow.stage.stageWidth) / 2);
     nativeWindow.y = main.configurationManager.get("tickTimings.windowTop")
