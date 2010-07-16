@@ -1,4 +1,4 @@
-﻿Version 2.7.0
+Version 2.7.0
     + Implemented a settings window, openable from the login window and from the icon menu.
     + Changed the appearance of the login window for consistency and moved the "Run on startup" option from the login window to the settings window.
     + Implemented a window displaying the tick timings of Cantr, openable from the icon menu when enabled from the settings dialog.

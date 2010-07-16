@@ -16,18 +16,26 @@ if ("air" in window) {
     air.ScreenMouseEvent = runtime.flash.events.ScreenMouseEvent;
 }
 
-function eventHandler (object, method) {
+function method (object, member) {
     // Returns an event handler function which when called forwards the
-    // invocation to a certain method of a certain object
-    // - If method is a function, it is invoked in the context of object;
-    //   otherwise, object[method] is invoked in the context of object.
-    // - All arguments passed to the handler are forwarded to the method,
+    // invocation to a certain member of a certain object
+    // - If member is a function, it is invoked in the context of object;
+    //   otherwise, object[member] is invoked in the context of object.
+    // - All arguments passed to the handler are forwarded to the member,
     //   after which all extra arguments passed to this function are included
-    var postArguments = Array.prototype.slice.call(arguments, 2);
-    if (method instanceof Function) return (function () {
-        return method.apply(object, Array.prototype.slice.call(arguments).concat(postArguments));
-    });
-    return (function () {
-        return object[method].apply(object, Array.prototype.slice.call(arguments).concat(postArguments));
-    });
+    if (arguments.length > 2) {
+        var postArguments = Array.prototype.slice.call(arguments, 2);
+        if (member instanceof Function) return function () {
+            return member.apply(object, Array.prototype.slice.call(arguments).concat(postArguments));
+        };
+        return function () {
+            return object[member].apply(object, Array.prototype.slice.call(arguments).concat(postArguments));
+        };
+    }
+    if (member instanceof Function) return function () {
+        return member.apply(object, arguments);
+    };
+    return function () {
+        return object[member].apply(object, arguments);
+    };
 }
