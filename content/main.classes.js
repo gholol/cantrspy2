@@ -12,7 +12,7 @@ var windowManager = {
         var loader = air.HTMLLoader.createRootWindow(false, options, false);
         this[name] = loader.window.nativeWindow;
         loader.window.opener = window;
-        loader.window.nativeWindow.addEventListener("closeWindow", eventHandler(this, "closeWindow"))
+        loader.window.nativeWindow.addEventListener("closeWindow", method(this, "closeWindow"))
         loader.window.nativeWindow.addEventListener(air.Event.CLOSING, function (event) {
             event.target.dispatchEvent(new air.Event("closeWindow"));
         })
@@ -51,7 +51,7 @@ var updateManager = {
             // Stop from calling again
             arguments.callee.called = true;
             // Set to destroy on logout
-            nativeApplication.addEventListener("logout", eventHandler(this, function (event) {
+            nativeApplication.addEventListener("logout", method(this, function (event) {
                 this.destroy();
                 nativeApplication.removeEventListener(event.type, arguments.callee.caller);
             }));
@@ -63,9 +63,9 @@ var updateManager = {
             // Initialise URLLoader
             this.updateLoader = new air.URLLoader;
             this.updateLoader.dataFormat = air.URLLoaderDataFormat.TEXT;
-            this.updateLoader.addEventListener(air.Event.COMPLETE, eventHandler(this, "updateEvent"));
-            this.updateLoader.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "updateEvent"));
-            this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, eventHandler(this, "updateEvent"));
+            this.updateLoader.addEventListener(air.Event.COMPLETE, method(this, "updateEvent"));
+            this.updateLoader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "updateEvent"));
+            this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "updateEvent"));
         }
         
         // Retrieve a public key from the server to initialise an update session
@@ -210,7 +210,7 @@ var menuManager = new function () {
     // Application icon context menu
     this.appIcon = new function () {
         nativeApplication.icon.menu = new air.NativeMenu;
-        nativeApplication.icon.menu.addEventListener(air.Event.SELECT, eventHandler(this, "iconMenuSelectEvent"));
+        nativeApplication.icon.menu.addEventListener(air.Event.SELECT, method(this, "iconMenuSelectEvent"));
         
         this.currentContext = null;
     
@@ -354,8 +354,8 @@ var iconManager = new function () {
                     // Create a new Loader if no spares are available, otherwise use a spare Loader
                     if (this.spareLoaders.length == 0) {
                         loader = new air.Loader;
-                        loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, eventHandler(this, "loadComplete"));
-                        loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "loadFailed"));
+                        loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, method(this, "loadComplete"));
+                        loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "loadFailed"));
                     } else var loader = this.spareLoaders.pop();
                     // Initiate loading of the icon file
                     this.request.url = sizes[index].url;
@@ -434,7 +434,7 @@ var iconManager = new function () {
                 this.doubleClick();
             }
         };
-        nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, eventHandler(this, "click"));
+        nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, method(this, "click"));
 
         this.singleClick = function () {
             // Update now
@@ -473,15 +473,15 @@ var requestManager = {
                 this.request.data.data = "yes";
                 // Create URLLoader
                 this.loader = new air.URLLoader;
-                this.loader.addEventListener(air.HTTPStatusEvent.HTTP_RESPONSE_STATUS, eventHandler(this, "httpResponse"));
-                this.loader.addEventListener(air.Event.COMPLETE, eventHandler(this, "close"));
-                this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, eventHandler(this, "close"));
-                this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, eventHandler(this, "close"));
+                this.loader.addEventListener(air.HTTPStatusEvent.HTTP_RESPONSE_STATUS, method(this, "httpResponse"));
+                this.loader.addEventListener(air.Event.COMPLETE, method(this, "close"));
+                this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "close"));
+                this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "close"));
                 // Create secondary URLRequest
                 this.subRequest = new air.URLRequest;
                 this.subRequest.cacheResponse = this.subRequest.useCache = false;
                 // Set to close on logout
-                nativeApplication.addEventListener("logout", eventHandler(this, "close"));
+                nativeApplication.addEventListener("logout", method(this, "close"));
             }
             
             // Initialise URLRequest
@@ -577,7 +577,7 @@ var configurationManager = new function () {
         if (asynchronous) {
             if (!this.commitPending) {
                 this.commitPending = true;
-                window.setTimeout(eventHandler(this, "commit"), 0);
+                window.setTimeout(method(this, "commit"), 0);
             }
         } else {
             this.commitPending = true;
@@ -596,6 +596,6 @@ var configurationManager = new function () {
             if ((error.name != "IOError") && (error.name != "EOFError")) throw error;
         } finally { this.closeStream(); }
     };
-    this.addEventListener("commit", eventHandler(this, "commit"));
+    this.addEventListener("commit", method(this, "commit"));
     this.commitPending = false; // Flag indicating that a commit event has been dispatched or the commit function called
 };

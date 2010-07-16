@@ -17,11 +17,6 @@ nativeApplication.addEventListener(air.InvokeEvent.INVOKE, invokeEvent);
 var updater;
 
 function appInit () {
-    // Initiate garbage collection process
-    window.setInterval(function () {
-        air.System.gc();
-    }, Math.floor(settings.updateInterval / 2));
-    
 	// Set up the initial application environment and define settings
 	if (settings.debug) {
 		settings.server = "localhost";
@@ -37,6 +32,9 @@ function appInit () {
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
+    
+    // Initiate garbage collection process
+    window.setInterval(method(air.System, "gc"), Math.floor(settings.updateInterval / 2));
     
     // Initialise update framework
     if (configurationManager.get("autoUpdate", true)) checkForUpdate(false);
