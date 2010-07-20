@@ -327,11 +327,12 @@ var iconManager = new function () {
     this.currentIcon = null; // Name of currently displayed icon
     this.nextIcon = null; // Icon to load after current loading is finished
     this.currentStyle = null; // Style of currently displayed icon
+    this.cache = new Object; // The bitmapData of icon files that have been previously loaded
 
     this.setIcon = function (name) {
         // Sets the array of icons specified by a string as the current tray icon.
         // If the icons have not finished loading, they will be set when they do.
-        
+
         if (this.activeLoaders.length != 0) {
             // Due to an apparent bug in air.Loader.close(), it is impossible to stop Loader objects
             // from progressing once they have been started; therefore, in the case that a new icon is
@@ -351,17 +352,24 @@ var iconManager = new function () {
                 this.currentIcon = name;
                 sizes = sizes.getDirectoryListing();
                 for (var index in sizes) {
-                    // Create a new Loader if no spares are available, otherwise use a spare Loader
-                    if (this.spareLoaders.length == 0) {
-                        loader = new air.Loader;
-                        loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, method(this, "loadComplete"));
-                        loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "loadFailed"));
-                    } else var loader = this.spareLoaders.pop();
-                    // Initiate loading of the icon file
-                    this.request.url = sizes[index].url;
-                    loader.load(this.request);
-                    this.activeLoaders.push(loader);
+                    var url = sizes[index].url
+                    if (url in this.cache) {
+                        // The bitmapData is already cached, so the icon does not need to be loaded
+                        this.completed.push(this.cache[url]);
+                    } else {
+                        // Create a new Loader if no spares are available, otherwise use a spare Loader
+                        if (this.spareLoaders.length == 0) {
+                            loader = new air.Loader;
+                            loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, method(this, "loadComplete1"));
+                            loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "loadComplete2"));
+                        } else var loader = this.spareLoaders.pop();
+                        // Initiate loading of the icon file
+                        this.request.url = url;
+                        loader.load(this.request);
+                        this.activeLoaders.push(loader);
+                    }
                 }
+                this.loadComplete3() // Check if the icon can immediately be displayed
             }
             else {
                 // No existing icon is identified, so display no icon
@@ -384,34 +392,32 @@ var iconManager = new function () {
             }
         }
     };
-    
+
     this.refresh = function (newStyle) {
         // When the iconStyle configuration entry is changed, this function can be called
         // to immediately load the new style of icon
         this.setIcon(this.nextIcon || this.currentIcon);
     };
 
-    this.loadComplete = function (event) {
+    this.loadComplete1 = function (event) {
         // Handles the completed loading of a single icon file.
-        this.completed.push(event.target.content.bitmapData);
+        this.completed.push(this.cache[event.target.url] = event.target.content.bitmapData);
         event.target.loader.unload();
-        this.loadFinished(event.target.loader);
+        this.loadComplete2(event);
     };
 
-    this.loadFailed = function (event) {
-        // Handles the failure of an icon file to load.
-        this.loadFinished(event.target.loader);
+    this.loadComplete2 = function (event) {
+        // Called after a loader fails or by loadComplete1
+        this.spareLoaders.push(this.activeLoaders.splice(this.activeLoaders.indexOf(event.target.loader), 1));
+        this.loadComplete3();
     };
 
-    this.loadFinished = function (loader) {
-        // Called by either loadComplete or loadFailed after a successful or failed load
-        this.activeLoaders.splice(this.activeLoaders.indexOf(loader), 1);
-        this.spareLoaders.push(loader);
+    this.loadComplete3 = function () {
+        // Called by either loadComplete1 or loadComplete2 after a successful or failed load
+        // or by setIcon when no icons need to be loaded
         if (this.activeLoaders.length == 0) {
-            var bitmaps = nativeApplication.icon.bitmaps;
-            while (bitmaps.length) bitmaps.pop().dispose();
-            while (this.completed.length != 0) bitmaps.push(this.completed.pop());
-            nativeApplication.icon.bitmaps = bitmaps;
+            nativeApplication.icon.bitmaps = this.completed;
+            this.completed = Array();
             if (this.nextIcon !== null) {
                 // If a subsequent icon is queued, begin loading it
                 this.setIcon(this.nextIcon);
