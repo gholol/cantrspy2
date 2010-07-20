@@ -6,10 +6,12 @@ Version 2.7.0
     + Added an option to manually check for updates, accessible from the same location as the checkbox.
     + Added the option to select an additional style of icon, which does not use transparency, for compatibility with Linux operating systems where the transparent icon was not rendered correctly.
     - Patched a number of memory leaks in the AIR runtime, significantly improving memory consumption stability, by:
-        - implementing an explicit periodic garbage collection process; and
-        - wherever possible, rewriting code to reuse already initialised objects instead of creating new ones.
+        - implementing an explicit periodic garbage collection process;
+        - wherever possible, rewriting code to reuse already initialised objects instead of creating new ones; and
+        - keeping already loaded icon files in memory instead of discarding them when they are unused.
     - Implemented a configurationManager class to allow preferences and other persistent values to be kept by the application.
     - Made changes to the windowManager class to allow implementation of Ticks window.
+    - Removed the 128×128 icon files; added 24×24 icons.
     - Various minor code changes.
 
 Version 2.6.9

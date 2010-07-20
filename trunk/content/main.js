@@ -34,7 +34,7 @@ function appInit () {
 	settings.version = node.textContent;
     
     // Initiate garbage collection process
-    window.setInterval(method(air.System, "gc"), Math.floor(settings.updateInterval / 2));
+    window.setInterval(method(air.System, air.System.gc), Math.floor(settings.updateInterval / 4));
     
     // Initialise update framework
     if (configurationManager.get("autoUpdate", true)) checkForUpdate(false);
