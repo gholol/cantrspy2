@@ -328,6 +328,7 @@ var iconManager = new function () {
     this.nextIcon = null; // Icon to load after current loading is finished
     this.currentStyle = null; // Style of currently displayed icon
     this.cache = new Object; // The bitmapData of icon files that have been previously loaded
+    this.sizes = [16, 24, 32, 48]; // All icon sizes.
 
     this.setIcon = function (name) {
         // Sets the array of icons specified by a string as the current tray icon.
@@ -346,20 +347,18 @@ var iconManager = new function () {
         var iconStyle = configurationManager.get("iconStyle", "circle");
         if ((name !== this.currentIcon) || (iconStyle !== this.currentStyle)) {
             var currentStyle = iconStyle;
-            var sizes = new air.File("app:/icons/" + iconStyle + "/" + name);
-            if (sizes.exists) {
+            if (name != null) {
                 // The named icon exists; begin loading the corresponding files
                 this.currentIcon = name;
-                sizes = sizes.getDirectoryListing();
-                for (var index in sizes) {
-                    var url = sizes[index].url
+                for (var index in this.sizes) {
+                    var url = "app:/icons/" + iconStyle + "/" + name + "/" + this.sizes[index] + ".png";
                     if (url in this.cache) {
                         // The bitmapData is already cached, so the icon does not need to be loaded
                         this.completed.push(this.cache[url]);
                     } else {
                         // Create a new Loader if no spares are available, otherwise use a spare Loader
                         if (this.spareLoaders.length == 0) {
-                            loader = new air.Loader;
+                            var loader = new air.Loader;
                             loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, method(this, "loadComplete1"));
                             loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "loadComplete2"));
                         } else var loader = this.spareLoaders.pop();
@@ -408,7 +407,7 @@ var iconManager = new function () {
 
     this.loadComplete2 = function (event) {
         // Called after a loader fails or by loadComplete1
-        this.spareLoaders.push(this.activeLoaders.splice(this.activeLoaders.indexOf(event.target.loader), 1));
+        this.spareLoaders.push(this.activeLoaders.splice(this.activeLoaders.indexOf(event.target.loader), 1)[0]);
         this.loadComplete3();
     };
 
