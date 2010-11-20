@@ -1,3 +1,24 @@
+Version 2.8.0
+    + Single-clicking the tray icon on Windows and Linux machines now has two functions:
+        + when the icon is flashing, it will only stop the icon from flashing;
+        + otherwise, it will perform the usual task of forcing an immediate update.
+    + Added an option to change the user interface language.
+        + By default, the operating system's locale will be used to determine the language.
+        + Spanish and English are currently available as selectable languages.
+        + Added Spanish strings to the application descriptor which can be used by the installer in Spanish locales.
+    + Implemented the capability for the icon to flash either indefinitely or for a limited period of time in response to a character newly having new events.
+        + The parameters for this behaviour can be set from the settings window.
+        + The flashing can be stopped using the icons's context menu, or by clicking the icon as detailed above.
+        + The flashing will also stop if the character in question is found to no longer have new events, having the effect that the icon will continue to flash until the new events are viewed (or the maximum time period is exceeded, if one is set).
+    + Rearranged some context menu items.
+    + Made changes concerning the Tick Timings window:
+        + There is now an option in the settings window to open the ticks window when the application starts.
+        + The ticks window is now resizable (size and position will also be remembered)
+        + The ticks window can now be opened from the settings window.
+        + Settings concerning the ticks window have their own group in the settings window.
+    + It can now be detected when the game is locked. When this is the case, an appropriate message will be displayed.
+    - Various minor code adjustments.
+
 Version 2.7.0
     + Implemented a settings window, openable from the login window and from the icon menu.
     + Changed the appearance of the login window for consistency and moved the "Run on startup" option from the login window to the settings window.
@@ -130,6 +151,11 @@ Version 2.1.0
     + When a single character has new events, their name will be shown. Otherwise, a number is shown
 
 TO DO:
+    - Allow changing of password without logging out.
+    - Fix storage of ticking timing window position.
+    - Allow adding and removing rows from tick timings.
+    - Implement a password storage system compatible with Linux systems.
     - Implement window to show feedback while logged in
         - Enable ignoring of characters
-    - etc...
+    - Allow connecting through a proxy.
+    - Add button in settings window to clear all saved data.

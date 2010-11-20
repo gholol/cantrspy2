@@ -1,22 +1,35 @@
-﻿var main = window.opener, statusText;
+﻿var main = window.opener;
 
 // Exit the application when this window is closed by the user
-function closingEvent (event) {
+nativeWindow.addEventListener(air.Event.CLOSING, function (event) {
+    event.target.removeEventListener(event.type, arguments.callee);
     event.stopPropagation();
     nativeApplication.dispatchEvent(new air.Event("appExit"));
-}
-nativeWindow.addEventListener(air.Event.CLOSING, closingEvent, false, 1);
+}, false, 1);
+
+function updateLocale () {
+    // Update localised strings.
+	localizer.update(document);
+    
+    // Resize to fit content.
+	nativeWindow.stage.stageWidth = container.offsetWidth;
+	nativeWindow.stage.stageHeight = container.offsetHeight;
+};
+nativeApplication.addEventListener("localeChanged", updateLocale);
+
+nativeWindow.addEventListener("closeWindow", function (event) {
+    event.target.removeEventListener(event.type, arguments.callee);
+    nativeApplication.removeEventListener("localeChanged", updateLocale);
+}, false, 1);
 
 window.onload = function () {
 	// Load localised strings
-	localizer.update();
-	statusText = document.createTextNode(localizer.getString("loginWindow", "statusInit"));
-	statusContainer.appendChild(statusText);
-	metaContainer.appendChild(document.createTextNode(main.settings.version));
+    statusContainer.setAttribute("local_innerHTML", "loginWindow.statusInit");
+    updateLocale();
+    
+	metaContainer.textContent = main.settings.version;
 
-	// Resize to fit content and centre in screen
-	nativeWindow.stage.stageWidth = container.offsetWidth;
-	nativeWindow.stage.stageHeight = container.offsetHeight;
+	// Centre window in screen.
 	nativeWindow.x = mainScreen.bounds.x + ((mainScreen.bounds.width - nativeWindow.width) / 2);
 	nativeWindow.y = mainScreen.bounds.y + ((mainScreen.bounds.height - nativeWindow.height) / 2);
 
@@ -36,9 +49,10 @@ window.onload = function () {
             password.value = "";
         }
     }
+    
     rememberDetails.onchange = function () {
         if (!this.checked) air.EncryptedLocalStore.removeItem("credentials");
-    }
+    };
 
     // Initialise form elements
     if (!playerID.value.length) { playerID.focus(); }
@@ -49,16 +63,17 @@ window.onload = function () {
     settings.onclick = function () {
         nativeApplication.dispatchEvent(new air.Event("showSettings"));
     };
-    
+
     // Show window
 	nativeWindow.activate();
-}
+};
 
 // Handle submission of login form
 function loginEvent () {
 	if (playerID.value.length && password.value.length) {
         // Update visual state
-		statusText.nodeValue = localizer.getString("loginWindow", "statusLoggingIn");
+		statusContainer.setAttribute("local_innerHTML", "loginWindow.statusLoggingIn");
+        localizer.update(statusContainer.parentNode);
 		disableForm();
 
         // Save credentials if user has opted to do so
@@ -83,12 +98,14 @@ function loginEvent () {
 }
 
 // Handle successful login
-function successfulLoginEvent () { nativeWindow.dispatchEvent(new air.Event("closeWindow")); }
-nativeWindow.addEventListener("successfulLogin", successfulLoginEvent);
+nativeWindow.addEventListener("successfulLogin", function () {
+    nativeWindow.dispatchEvent(new air.Event("closeWindow"));
+});
 
 // Handle failed login
 nativeWindow.addEventListener("badLogin", function () {
-	statusText.nodeValue = localizer.getString("loginWindow", "statusBadLogin");
+	statusContainer.setAttribute("local_innerHTML", "loginWindow.statusBadLogin");
+    localizer.update(statusContainer.parentNode);
 	password.value = "";
 	enableForm();
 });
