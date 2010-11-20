@@ -1,3 +1,6 @@
+Version 2.8.1
+    + Corrected some errors in the Spanish translation.
+
 Version 2.8.0
     + Single-clicking the tray icon on Windows and Linux machines now has two functions:
         + when the icon is flashing, it will only stop the icon from flashing;
