@@ -9,7 +9,9 @@ if ("air" in window) {
 
 	if ("Localizer" in air) {
 		var localizer = air.Localizer.localizer;
-	}
+	} else if ("localizer" in window.opener) {
+        var localizer = window.opener.localizer;
+    }
 
     // AIR Aliases
     air.errors = runtime.flash.errors;

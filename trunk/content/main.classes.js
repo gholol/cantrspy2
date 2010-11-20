@@ -2,13 +2,13 @@
  *   DOMWindow createWindow(String url, Number width, Number height)
  */
 var windowManager = {
-    createWindow: function (name, url) {
+    createWindow: function (name, url, resizable) {
         // Creates a standard window and initiates loading of the given URL.
         // Returns the created DOMWindow object.
         var options = new air.NativeWindowInitOptions;
         options.maximizable = false;
         options.minimizable = true;
-        options.resizable = false;
+        options.resizable = resizable || false;
         var loader = air.HTMLLoader.createRootWindow(false, options, false);
         this[name] = loader.window.nativeWindow;
         loader.window.opener = window;
@@ -35,6 +35,7 @@ var windowManager = {
 /* Object updateManager
  *   void initialise(Object credentials)
  *   void userUpdate()
+ *   void stopFlashing()
  */
 var updateManager = {
 
@@ -44,6 +45,7 @@ var updateManager = {
         delete this.phase;
         delete this.status;
         if (this.status = "updating") this.updateLoader.close();
+        this.stopFlashing();
     },
 
     initialise: function (aCredentials) {
@@ -67,14 +69,18 @@ var updateManager = {
             this.updateLoader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "updateEvent"));
             this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "updateEvent"));
         }
-        
+
+        this.oldNames = [];
+        this.flashNames = [];
+        this.flashTimeouts = [];
+
         // Retrieve a public key from the server to initialise an update session
         this.credentials = aCredentials;
 
         if ('pass' in this.updateRequest.data) delete this.updateRequest.data.pass;
         this.updateRequest.data.id = this.credentials.id;
         this.updateRequest.data.requestkey = "1";
-        
+
         this.phase = "requesting_key";
         this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
         this.update();
@@ -88,7 +94,7 @@ var updateManager = {
 
             // Indicate activity to user
             iconManager.setIcon("blank");
-            iconManager.setTooltip(localizer.getString("trayTooltips", "connecting"));
+            iconManager.setTooltip(["trayTooltips", "connecting"]);
 
             // Invoke update
             this.update();
@@ -109,7 +115,7 @@ var updateManager = {
                 // A transmission error occured
                 var message;
                 switch (event.errorID) {
-                    case 2032: message = localizer.getString("trayTooltips", "errorConnect"); break;
+                    case 2032: message = ["trayTooltips", "errorConnect"]; break;
                     default: message = event.text;
                 }
                 iconManager.setIcon("error");
@@ -118,7 +124,7 @@ var updateManager = {
                 break;
 
             case air.Event.COMPLETE:
-                var data = event.target.data;
+                var data = event.target.data.replace(/^\s+|\s+$/g, "");
                 if (this.phase == "requesting_key") {
                     try {
                         try {
@@ -139,27 +145,42 @@ var updateManager = {
                     catch (error) { if (error == "parse_fail") {
                         // Parsing failed
                         iconManager.setIcon("error");
-                        iconManager.setTooltip(localizer.getString("trayTooltips", "errorParse"));
+                        iconManager.setTooltip(["trayTooltips", "errorParse"]);
                     } else throw error; }
                 }
                 else {
                     // The update request completed successfully.
-                    if (data && data.substr(0, 7) == "OK LIST") {
+                    if (data && /^OK LIST/.test(data)) {
                         // The authentication was successful
-                        var list = data.substr(8);
-                        if (list.length) {
+                        var names = data.split("\n"); names.shift();
+                        if (names.length > 0) {
                             // One or more character names were returned
-                            var names = list.split("\n");
                             if (names.length > 15) iconManager.setIcon("alert");
                             else iconManager.setIcon(names.length);
-                            var primary = names.join(", ");
-                            var secondary = localizer.getString("trayTooltips", "numChars", [names.length]);
-                            iconManager.setTooltip(primary, secondary);
+                            iconManager.setTooltip(names.join(", "), ["trayTooltips", "numChars", [names.length]]);
                         } else {
                             // No character names were returned
                             iconManager.setIcon("idle");
-                            iconManager.setTooltip(localizer.getString("trayTooltips", "noChars"));
+                            iconManager.setTooltip(["trayTooltips", "noChars"]);
                         }
+                        // Check for characters in the new list who are not in the old list.
+                        var newNames = names.filter(function (n) { return (this.indexOf(n) < 0) }, this.oldNames);
+                        this.flashNames = this.flashNames.filter(
+                            function (n) { return (this.indexOf(n) != -1); }, names).concat(newNames);
+                        if (this.flashNames.length && configurationManager.get("flashIcon", false)) {
+                            // Display an alert to the user depending on settings.
+                            iconManager.startFlash();
+                            if (configurationManager.get("flashTiming", "indefinite") == "definite") {
+                                var callback = function () {
+                                    this.flashNames = this.flashNames.filter(function (n) { return (newNames.indexOf(n) != -1); });
+                                    if (this.flashNames.length == 0) iconManager.stopFlash();
+                                    this.flashTimeouts.splice(this.flashTimeouts.indexOf(arguments.callee.timeoutID), 1)
+                                };
+                                this.flashTimeouts.push(callback.timeoutID = setTimeout(method(this, callback),
+                                    configurationManager.get("flashDuration", 30) * 1000));
+                            }
+                        } else iconManager.stopFlash();
+                        this.oldNames = names;
                     } else if ((data == "BAD LOGIN") || (data == "ERROR Hacking attempt")) {
                         // The login details were incorrect
                         if ("login" in windowManager) {
@@ -167,17 +188,21 @@ var updateManager = {
                             this.destroy();
                         } else {
                             iconManager.setIcon("error");
-                            iconManager.setTooltip(localizer.getString("trayTooltips", "errorAuth"));
+                            iconManager.setTooltip(["trayTooltips", "errorAuth"]);
                         }
                         var badLogin = true;
-                    } else if (data && data.substr(0, 5) == "ERROR") {
+                    } else if (data && /^ERROR/.test(data)) {
                         // The server returned an error message
                         iconManager.setIcon("error");
-                        iconManager.setTooltip(localizer.getString("trayTooltips", "error", [data.substr(6)]));
+                        iconManager.setTooltip(["trayTooltips", "error", [data.substr(6)]]);
+                    } else if (data == "GAME LOCKED") {
+                        // The game is locked.
+                        iconManager.setIcon("locked");
+                        iconManager.setTooltip(["trayTooltips", "gameLocked"])
                     } else {
                         // The response could not be interpreted
                         iconManager.setIcon("error");
-                        iconManager.setTooltip(localizer.getString("trayTooltips", "errorParse"));
+                        iconManager.setTooltip(["trayTooltips", "errorParse"]);
                     }
                 } break;
 
@@ -194,6 +219,12 @@ var updateManager = {
 
         this.status = "idle";
         menuManager.appIcon.enable("updateNow");
+    },
+    
+    stopFlashing: function () {
+        this.flashNames = [];
+        this.flashTimeouts.forEach(clearTimeout);
+        iconManager.stopFlash();
     }
 
 };
@@ -211,63 +242,42 @@ var menuManager = new function () {
     this.appIcon = new function () {
         nativeApplication.icon.menu = new air.NativeMenu;
         nativeApplication.icon.menu.addEventListener(air.Event.SELECT, method(this, "iconMenuSelectEvent"));
-        
+
         this.currentContext = null;
-    
+
+        function put(id) {
+            var i = new air.NativeMenuItem(localizer.getString("trayMenu", id));
+            i.name = id;
+            nativeApplication.icon.menu.addItem(i);
+            return i;
+        };
+
         this.setMenu = function (context) {
             this.currentContext = context;
             nativeApplication.icon.menu.removeAllItems();
-
             if (context !== null) {
-                var i;
                 if (context == "main") {
-                    // Open player page
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "openPlayerPage"));
-                    i.name = "openPlayerPage";
-                    nativeApplication.icon.menu.addItem(i);
-
-                    // Update now
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "updateNow"));
-                    i.name = "updateNow";
-                    nativeApplication.icon.menu.addItem(i);
-
-                    // Logout
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "logout"));
-                    i.name = "logout";
-                    nativeApplication.icon.menu.addItem(i);
-                    
-                    // Settings
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "settings"));
-                    i.name = "settings";
-                    nativeApplication.icon.menu.addItem(i);
+                    put("openPlayerPage");
+                    put("updateNow");
+                    put("settings");
+                    put("logout");
                 }
                 if (configurationManager.get("showTicks", false)) {
-                    // divider
-                    i = new air.NativeMenuItem("", true);
-                    nativeApplication.icon.menu.addItem(i);
-
-                    // Tick timings
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "tickTimings"));
-                    i.name = "tickTimings";
-                    i.enabled = !("tickTimings" in windowManager);
-                    nativeApplication.icon.menu.addItem(i);
+                    put("");
+                    put("tickTimings");
                 }
-                if (air.NativeApplication.supportsSystemTrayIcon) {
-                    // divider
-                    i = new air.NativeMenuItem("", true);
-                    nativeApplication.icon.menu.addItem(i);
-                    
-                    // Exit
-                    i = new air.NativeMenuItem(localizer.getString("trayMenu", "exit"));
-                    i.name = "exit";
-                    nativeApplication.icon.menu.addItem(i);
+                if (air.NativeApplication.supportsSystemTrayIcon || iconManager.flashing) {
+                    put("")
+                    if (iconManager.flashing) put("stopFlashing");
+                    if (air.NativeApplication.supportsSystemTrayIcon) put("exit");
                 }
             }
         };
-        
+
         this.refresh = function () {
             this.setMenu(this.currentContext);
-        }
+        };
+        nativeApplication.addEventListener("localeChanged", method(this, this.refresh));
 
         this.enable = function (name) {
             // Enable a named menu item
@@ -285,23 +295,22 @@ var menuManager = new function () {
             // Responds to the selection of an icon menu item
             switch (event.target.name) {
                 case "openPlayerPage":
-                    requestManager.playerPage.open();
-                    break;
+                    requestManager.playerPage.open(); break;
 
                 case "updateNow":
-                    updateManager.userUpdate();
-                    break;
+                    updateManager.userUpdate(); break;
 
                 case "logout":
-                    logout();
-                    break;
-                
+                    logout(); break;
+
                 case "settings":
-                    showSettings();
-                    break;
-                
+                    showSettings(); break;
+
                 case "tickTimings":
-                    showTicks();
+                    showTicks(); break;
+
+                case "stopFlashing":
+                    updateManager.stopFlashing();
                     break;
 
                 case "exit":
@@ -315,6 +324,8 @@ var menuManager = new function () {
  *   void setIcon(String name)
  *   void setTooltip(String primary, String secondary)
  *   void refresh()
+ *   void startFlash()
+ *   void stopFlash()
  */
 var iconManager = new function () {
 
@@ -329,10 +340,16 @@ var iconManager = new function () {
     this.currentStyle = null; // Style of currently displayed icon
     this.cache = new Object; // The bitmapData of icon files that have been previously loaded
     this.sizes = [16, 24, 32, 48]; // All icon sizes.
+    this.frozen = false; // Whether new icon change requests will always be queued.
 
     this.setIcon = function (name) {
         // Sets the array of icons specified by a string as the current tray icon.
         // If the icons have not finished loading, they will be set when they do.
+
+        if (this.frozen) {
+            this.frozenIcon = name;
+            return;
+        }
 
         if (this.activeLoaders.length != 0) {
             // Due to an apparent bug in air.Loader.close(), it is impossible to stop Loader objects
@@ -373,24 +390,37 @@ var iconManager = new function () {
             else {
                 // No existing icon is identified, so display no icon
                 this.currentIcon = null;
-                var bitmaps = nativeApplication.icon.bitmaps;
-                while (bitmaps.length != 0) bitmaps.pop().dispose();
-                nativeApplication.icon.bitmaps = bitmaps;
+                nativeApplication.icon.bitmaps = Array();
             }
         }
     };
 
-    this.setTooltip = function (primary, secondary) {
-        // If supported, sets the tooltip string of the system tray icon
-        // If the primary string is too long, the optional secondary string is used instead
+    this.currentTooltip = [""];
+
+    this.setTooltip = function () {
+        // If supported, sets the tooltip string of the system tray icon.
+        // Subsequent arguments can be used to provide shorter forms in case the previous strings do
+        // not fit inside the maximum tooltip length.
+        // Instead of a string, an array of arguments to be passed to localizer.getString may be used.
+        this.currentTooltip = Array.prototype.slice.call(arguments);
+        this.setLocalTooltip();
+    };
+
+    this.setLocalTooltip = function () {
         if (air.NativeApplication.supportsSystemTrayIcon) {
-            if ((primary.length > air.SystemTrayIcon.MAX_TIP_LENGTH) && (secondary !== undefined)) {
-                nativeApplication.icon.tooltip = secondary;
-            } else {
-                nativeApplication.icon.tooltip = primary;
+            for (var n = 0; n < this.currentTooltip.length; n++) {
+                var localised = (this.currentTooltip[n] instanceof Array)
+                    ? localizer.getString.apply(localizer, this.currentTooltip[n])
+                    : this.currentTooltip[n];
+                if ((localised.length <= air.SystemTrayIcon.MAX_TIP_LENGTH) || (n == (this.currentTooltip.length - 1))) {
+                    nativeApplication.icon.tooltip = localised;
+                    break;
+                }
             }
         }
     };
+    // Update the localised tooltip if the current locale changes.
+    nativeApplication.addEventListener("localeChanged", method(this, this.setLocalTooltip));
 
     this.refresh = function (newStyle) {
         // When the iconStyle configuration entry is changed, this function can be called
@@ -442,8 +472,10 @@ var iconManager = new function () {
         nativeApplication.icon.addEventListener(air.ScreenMouseEvent.CLICK, method(this, "click"));
 
         this.singleClick = function () {
-            // Update now
-            updateManager.userUpdate();
+            // If icon is currently flashing, stop it;
+            if (iconManager.flashing) updateManager.stopFlashing();
+            // Otherwise, update now.
+            else updateManager.userUpdate();
         };
 
         this.doubleClick = function () {
@@ -452,20 +484,55 @@ var iconManager = new function () {
         };
     }
 
+    this.flashing = false;
+
+    this.startFlash = function () {
+        if (!this.flashing) {
+            this.flashing = true;
+            menuManager.appIcon.refresh();
+            this.flashOn();
+        }
+    };
+
+    this.stopFlash = function () {
+        if (this.flashing) {
+            this.flashing = false;
+            menuManager.appIcon.refresh();
+            clearTimeout(this.flashTimeout);
+            this.flashOn();
+        }
+    };
+
+    this.flashOff = method(this, function () {
+        this.frozenIcon = this.nextIcon || this.currentIcon;
+        this.setIcon("blank");
+        this.frozen = true;
+        this.flashTimeout = setTimeout(this.flashOn, settings.flashPeriod);
+    });
+
+    this.flashOn = method(this, function () {
+        if (this.frozen) {
+            this.frozen = false;
+            this.setIcon(this.frozenIcon);
+        }
+        if (this.flashing) this.flashTimeout = setTimeout(this.flashOff, settings.flashPeriod);
+    });
+
 };
+
 
 /* Object requestManager
  *   Object playerPage
  *     void initialise(Object credentials)
  *       void open(NativeMenuItem item)
  */
-var requestManager = {
+ var requestManager = {
     playerPage: {
 
         initialise: function (aCredentials) {
             // Sets the object to use the specified username and password for login request
             // Must be called before open or after destroy
-            
+
             if (!arguments.callee.called) {
                 // Stop any subsequent executions
                 arguments.callee.called = true;
@@ -488,11 +555,11 @@ var requestManager = {
                 // Set to close on logout
                 nativeApplication.addEventListener("logout", method(this, "close"));
             }
-            
+
             // Initialise URLRequest
             this.request.data.id = aCredentials.id;
             this.request.data.password = aCredentials.pw;
-            
+
             // Initialise status
             this.status = "idle";
         },
@@ -544,7 +611,7 @@ var configurationManager = new function () {
             this.streamOpen = false;
         }
     }
-    
+
     // Initialise File instance corresponding to configuration file
     this.file = air.File.applicationStorageDirectory.resolvePath("configuration.amf");
     if (this.file.exists) {
@@ -564,7 +631,7 @@ var configurationManager = new function () {
         // File does not exist (or was deleted due to an error), create an empty buffer
         this.buffer = new Object;
     }
-    
+
     this.get = function (name, defaultValue) {
         // Reads the value associated with a configuration entry name
         // Returns defaultValue if the entry does not exist
@@ -572,7 +639,7 @@ var configurationManager = new function () {
         if (!(name in this.buffer)) return defaultValue;
         return this.buffer[name];
     };
-    
+
     this.set = function (name, value, asynchronous) {
         // Writes a configuration entry
         // If value is not specified, the entry is deleted

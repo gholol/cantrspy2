@@ -27,11 +27,21 @@ function appInit () {
 	}
 	settings.protocolVersion = "1.1.0.";
     settings.clickThreshold = 500;
-    settings.showTicks = true;
-
+    settings.flashPeriod = 1000;
+    settings.defaultLocaleChain = localizer.getLocaleChain();
+    
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
 	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
+    
+    // Initialise locale
+    var locale = configurationManager.get("locale", "default"),
+        chain = settings.defaultLocaleChain;
+    if (locale !== "default") {
+        chain = chain.filter(function (l) { return (l !== locale); }, this);
+        chain.unshift(locale);
+    }
+    localizer.setLocaleChain(chain);
     
     // Initiate garbage collection process
     window.setInterval(method(air.System, air.System.gc), Math.floor(settings.updateInterval / 4));
@@ -77,7 +87,12 @@ nativeApplication.addEventListener("checkForUpdate", function () { checkForUpdat
 
 var credentials; // Holder for authentication data from login window
 
-function appStart () {    
+function appStart () {
+    // Open the ticks window if the user has chosen to do so.
+    if (configurationManager.get("ticksAutoOpen", false)) {
+        showTicks();
+    }
+
     // Look for previously saved credentials
     var data = air.EncryptedLocalStore.getItem("credentials");
     if (data !== null) {
@@ -89,7 +104,7 @@ function appStart () {
             // Initialise application icon to indicate application presence
             menuManager.appIcon.setMenu("locked");
             iconManager.setIcon("blank");
-            iconManager.setTooltip(localizer.getString("trayTooltips", "connecting"));
+            iconManager.setTooltip(["trayTooltips", "connecting"]);
 
             // Attempt to log in with credentials
             credentials = {id: id, pw: pw};
@@ -102,7 +117,8 @@ function appStart () {
             air.EncryptedLocalStore.removeItem("credentials");
         }
     }
-    // Otherwiwse create the login window to request manual input
+    
+    // Otherwise create the login window to request manual input
     windowManager.createWindow("login", "login.htm");
 }
 
@@ -125,7 +141,7 @@ function showTicks () {
     if ("tickTimings" in windowManager) {
         windowManager.tickTimings.activate();
     } else {
-        windowManager.createWindow("tickTimings", "ticks.htm");
+        windowManager.createWindow("tickTimings", "ticks.htm", true);
     }
 }
 nativeApplication.addEventListener("showTicks", showTicks);
