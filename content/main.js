@@ -94,32 +94,21 @@ function appStart () {
     }
 
     // Look for previously saved credentials
-    var data = air.EncryptedLocalStore.getItem("credentials");
-    if (data !== null) {
-        try {
-            // Read values from retrieved data
-            id = data.readUTF()
-            pw = data.readUTF();
+    var id = configurationManager.get("credentials.playerID");
+    var pw = configurationManager.get("credentials.password");
+    if (id && pw) {
+        // Initialise application icon to indicate application presence
+        menuManager.appIcon.setMenu("locked");
+        iconManager.setIcon("blank");
+        iconManager.setTooltip(["trayTooltips", "connecting"]);
 
-            // Initialise application icon to indicate application presence
-            menuManager.appIcon.setMenu("locked");
-            iconManager.setIcon("blank");
-            iconManager.setTooltip(["trayTooltips", "connecting"]);
-
-            // Attempt to log in with credentials
-            credentials = {id: id, pw: pw};
-            loginEvent();
-
-            return;
-        }
-        catch (error) {
-            // Data seems to have been corrupted
-            air.EncryptedLocalStore.removeItem("credentials");
-        }
-    }
-    
-    // Otherwise create the login window to request manual input
-    windowManager.createWindow("login", "login.htm");
+        // Attempt to log in with credentials
+        credentials = { id:id, pw:pw };
+        loginEvent();
+    } else {
+        // Otherwise create the login window to request manual input
+        windowManager.createWindow("login", "login.htm");
+    }    
 }
 
 /* -- PHASE 4: SERVER FEEDBACK -- */

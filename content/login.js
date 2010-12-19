@@ -35,23 +35,19 @@ window.onload = function () {
 
     // Obtain stored user credentials, if applicable
     // and initialise rememberDetails checkbox
-    var credentials = air.EncryptedLocalStore.getItem("credentials");
-    if (credentials !== null) {
-        try {
-            playerID.value = credentials.readUTF();
-            password.value = credentials.readUTF();
-            rememberDetails.checked = true;
-        }
-        catch (error) {
-            // Data seems to have been corrupted
-            air.EncryptedLocalStore.removeItem("credentials");
-            playerID.value = "";
-            password.value = "";
-        }
+    var id = main.configurationManager.get("credentials.playerID");
+    var pw = main.configurationManager.get("credentials.password");
+    if (id && pw) {
+        playerID.value = id;
+        password.value = pw;
+        rememberDetails.checked = true;
     }
     
     rememberDetails.onchange = function () {
-        if (!this.checked) air.EncryptedLocalStore.removeItem("credentials");
+        if (!this.checked) {
+            main.configurationManager.set("credentials.playerID");
+            main.configurationManager.set("credentials.password");
+        }
     };
 
     // Initialise form elements
@@ -78,14 +74,12 @@ function loginEvent () {
 
         // Save credentials if user has opted to do so
         if (rememberDetails.checked) {
-            var credentials = new air.ByteArray;
-            credentials.writeUTF(playerID.value);
-            credentials.writeUTF(password.value);
-            air.EncryptedLocalStore.setItem("credentials", credentials);
+            main.configurationManager.set("credentials.playerID", playerID.value);
+            main.configurationManager.set("credentials.password", password.value);
         }
 
 		// Transmit login information to main window
-		main.credentials = {id: playerID.value, pw: password.value};
+		main.credentials = { id:playerID.value, pw:password.value };
 		nativeApplication.dispatchEvent(new air.Event("login"));
 	}
 	else {

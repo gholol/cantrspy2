@@ -53,10 +53,7 @@ var updateManager = {
             // Stop from calling again
             arguments.callee.called = true;
             // Set to destroy on logout
-            nativeApplication.addEventListener("logout", method(this, function (event) {
-                this.destroy();
-                nativeApplication.removeEventListener(event.type, arguments.callee.caller);
-            }));
+            nativeApplication.addEventListener("logout", method(this, this.destroy));
             // Initialise URLRequest
             this.updateRequest = new air.URLRequest("http://" + settings.server + "/app.getevents2.php");
             this.updateRequest.cacheResponse = this.updateRequest.useCache = false;
