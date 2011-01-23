@@ -31,7 +31,7 @@ function appInit () {
     settings.defaultLocaleChain = localizer.getLocaleChain();
     
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
-	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
+	node = node.getElementsByTagName("application")[0].getElementsByTagName("versionLabel")[0];
 	settings.version = node.textContent;
     
     // Initialise locale
