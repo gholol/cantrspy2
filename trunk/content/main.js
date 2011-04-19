@@ -5,6 +5,7 @@ var settings = {};
 function invokeEvent (event) {
 	// Retrieve arguments supplied to the application on first invocation only
 	settings.debug = (event.arguments.indexOf("debug") >= 0);
+    settings.trace = (event.arguments.indexOf("trace") >= 0);
 	if (settings.debug) { air.trace("DEBUGGING MODE ENABLED"); }
 	nativeApplication.removeEventListener(air.InvokeEvent.INVOKE, invokeEvent);
 
@@ -31,7 +32,7 @@ function appInit () {
     settings.defaultLocaleChain = localizer.getLocaleChain();
     
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
-	node = node.getElementsByTagName("application")[0].getElementsByTagName("versionLabel")[0];
+	node = node.getElementsByTagName("application")[0].getElementsByTagName("version")[0];
 	settings.version = node.textContent;
     
     // Initialise locale
@@ -88,6 +89,9 @@ nativeApplication.addEventListener("checkForUpdate", function () { checkForUpdat
 var credentials; // Holder for authentication data from login window
 
 function appStart () {
+    // Open trace window if trace mode is active
+    if (settings.trace) windowManager.createWindow("trace", "trace.htm", true, true);
+    
     // Open the ticks window if the user has chosen to do so.
     if (configurationManager.get("ticksAutoOpen", false)) {
         showTicks();

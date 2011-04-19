@@ -24,7 +24,9 @@ window.onload = function () {
     nativeWindow.activate();
     
     // Initialise loading of ticks page
-    document.getElementById("inset").src = "http://joo.freehostia.com/cantr/ticks/small.php";
+    document.getElementById("inset").src = main.settings.debug
+        ? "http://localhost/CantrTicks/small.php"
+        : "http://joo.freehostia.com/cantr/ticks/small.php";
 };
 
 nativeWindow.addEventListener("closeWindow", function () {
