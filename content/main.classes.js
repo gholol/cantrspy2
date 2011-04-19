@@ -2,14 +2,14 @@
  *   DOMWindow createWindow(String url, Number width, Number height)
  */
 var windowManager = {
-    createWindow: function (name, url, resizable) {
+    createWindow: function (name, url, resizable, scrollable) {
         // Creates a standard window and initiates loading of the given URL.
         // Returns the created DOMWindow object.
         var options = new air.NativeWindowInitOptions;
         options.maximizable = false;
         options.minimizable = true;
-        options.resizable = resizable || false;
-        var loader = air.HTMLLoader.createRootWindow(false, options, false);
+        options.resizable = !!resizable;
+        var loader = air.HTMLLoader.createRootWindow(false, options, !!scrollable);
         this[name] = loader.window.nativeWindow;
         loader.window.opener = window;
         loader.window.nativeWindow.addEventListener("closeWindow", method(this, "closeWindow"))
@@ -65,6 +65,14 @@ var updateManager = {
             this.updateLoader.addEventListener(air.Event.COMPLETE, method(this, "updateEvent"));
             this.updateLoader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "updateEvent"));
             this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "updateEvent"));
+            if (settings.trace) {
+                this.updateLoader.addEventListener(air.Event.OPEN, method(this, function () {
+                    trace(this.updateRequest.data.toString(), "request");
+                }));
+                this.updateLoader.addEventListener(air.Event.COMPLETE, method(this, function () {
+                    trace(this.updateLoader.data.toString(), "response");
+                }));
+            }
         }
 
         this.oldNames = [];
@@ -154,7 +162,12 @@ var updateManager = {
                             // One or more character names were returned
                             if (names.length > 15) iconManager.setIcon("alert");
                             else iconManager.setIcon(names.length);
-                            iconManager.setTooltip(names.join(", "), ["trayTooltips", "numChars", [names.length]]);
+                            iconManager.setTooltip(
+                                names.join(", "),
+                                (names.length < 5)
+                                    ? ["trayTooltips", "numChars_" + names.length]
+                                    : ["trayTooltips", "numChars", [names.length]]
+                            );
                         } else {
                             // No character names were returned
                             iconManager.setIcon("idle");

@@ -1,4 +1,9 @@
-﻿Version 2.8.2
+﻿Version 2.8.3
+	+ Added Portugese localisation.
+    + Added Polish localisation.
+    - Added a "-- trace" command argument which starts CantrSpy with a window showing the main HTTP stream.
+
+Version 2.8.2
     - As a temporary fix for certain Linux distributions, changed the password storage mechanism to an alternative to the EncryptedLocalStore offered by AIR.
     - Fixed an error which could occur when repeatedly logging in and out while the icon is flashing.
 
@@ -158,8 +163,9 @@ Version 2.1.0
     + When a single character has new events, their name will be shown. Otherwise, a number is shown
 
 TO DO:
+    - Change tick timings to be shown by default, or always shown.
+	- Integrate list formatter utility.
     - Allow changing of password without logging out.
-    - Allow adding and removing rows from tick timings.
     - Implement window to show feedback while logged in
         - Enable ignoring of characters
     - Allow connecting through a proxy.
