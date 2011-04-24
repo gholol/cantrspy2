@@ -1,4 +1,10 @@
-﻿Version 2.8.3
+Version 2.8.4
+    + Added a Polish translation of the application's meta-description.
+    + Added Turkish localisation.
+    - Disabled word-wrapping in settings window and bound window width to content width.
+    - Modified modules/AIRLocalizer.js to allow empty strings to be defined in resource bundles.
+
+Version 2.8.3
 	+ Added Portugese localisation.
     + Added Polish localisation.
     - Added a "-- trace" command argument which starts CantrSpy with a window showing the main HTTP stream.
