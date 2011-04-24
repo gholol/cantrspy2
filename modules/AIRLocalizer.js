@@ -1,5 +1,8 @@
 ﻿/* AIRLocalizer.js - Revision: 1.5 */
 
+// Modified by joo <joseph.crowe@live.co.uk> to allow empty strings to be defined in resource
+// bundles.
+
 /*
 ADOBE SYSTEMS INCORPORATED
 Copyright 2007-2008 Adobe Systems Incorporated. All Rights Reserved.
@@ -452,7 +455,9 @@ distribute this file only in accordance with such agreement.
 		 * @return string
 		 */
 		get: function(key){
-			return this.keys[key] || null;
+// [START OF MODIFICATIONS]
+            return (key in this.keys) ? this.keys[key] : null;
+// [END OF MODIFICATIONS]
 		}
 	};
 	
@@ -534,11 +539,13 @@ distribute this file only in accordance with such agreement.
 			}
 			if(setInner){
 				var value = this.getHtmlString(innerValue);
+// [START OF MODIFICATIONS]
 				try{
-					node.innerHTML = value||innerValue;
+					node.innerHTML = (value == null) ? innerValue : value;
 				}catch(e){
-					node.textContent = value||innerValue;
+					node.textContent = (value == null) ? innerValue : value;
 				}
+// [END OF MODIFICATIONS]
 			}
 			for(var i=params.length-1;i>=0;i--){
 				var param = params[i];
