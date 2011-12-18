@@ -1,8 +1,10 @@
 Version 2.8.4
     + Added a Polish translation of the application's meta-description.
     + Added Turkish localisation.
+    + Fixed an incompatibility with the player login process introduced by recent server-side changes.
     - Disabled word-wrapping in settings window and bound window width to content width.
     - Modified modules/AIRLocalizer.js to allow empty strings to be defined in resource bundles.
+    - Added tempManager to manage temporary files.
 
 Version 2.8.3
 	+ Added Portugese localisation.

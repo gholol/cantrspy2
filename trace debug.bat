@@ -1,1 +1,1 @@
-..\..\SDK\bin\adl application.xml -- trace debug
+..\AIR\SDK\bin\adl application.xml -- trace debug
