@@ -330,6 +330,7 @@ var menuManager = new function () {
     };
 };
 
+
 /* Object iconManager
  *   void setIcon(String name)
  *   void setTooltip(String primary, String secondary)
@@ -531,12 +532,13 @@ var iconManager = new function () {
 };
 
 
+
 /* Object requestManager
  *   Object playerPage
  *     void initialise(Object credentials)
  *       void open(NativeMenuItem item)
  */
- var requestManager = {
+var requestManager = {
     playerPage: {
 
         initialise: function (aCredentials) {
@@ -547,11 +549,14 @@ var iconManager = new function () {
                 // Stop any subsequent executions
                 arguments.callee.called = true;
                 // Create URLRequest
-                this.request = new air.URLRequest("http://" + settings.server + "/index.php?page=login");
-                this.request.method = air.URLRequestMethod.POST;
+                this.request = new air.URLRequest("http://" + settings.server);
+                this.request.method = air.URLRequestMethod.GET
                 this.request.cacheResponse = false;
                 this.request.useCache = false;
+                this.request.manageCookies = false;
+                this.request.followRedirects = false;
                 this.request.data = new air.URLVariables;
+                this.request.data.page = "login";
                 this.request.data.data = "yes";
                 // Create URLLoader
                 this.loader = new air.URLLoader;
@@ -561,7 +566,9 @@ var iconManager = new function () {
                 this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "close"));
                 // Create secondary URLRequest
                 this.subRequest = new air.URLRequest;
-                this.subRequest.cacheResponse = this.subRequest.useCache = false;
+                this.subRequest.cacheResponse = false;
+                this.subRequest.useCache = false;
+                this.subRequest.manageCookies = false;
                 // Set to close on logout
                 nativeApplication.addEventListener("logout", method(this, "close"));
             }
@@ -578,6 +585,12 @@ var iconManager = new function () {
             if (this.status == "idle") {
                 // Begins the process of logging in with the user's credentials
                 // and opening their player page in a new browser window
+                redirect("http://%s/?page=login&data=yes&id=%s&password=%s"
+                         .replace(/%s/, settings.server)
+                         .replace(/%s/, this.request.data.id)
+                         .replace(/%s/, this.request.data.password));
+                return;
+                
                 this.loader.load(this.request);
                 this.status = "requesting";
                 menuManager.appIcon.disable("playerPage");
@@ -586,8 +599,23 @@ var iconManager = new function () {
 
         httpResponse: function (event) {
             // Handles the HTTP response from the player page request
-            if (event.status == 200) {
-                this.subRequest.url = event.responseURL;
+            if (event.status == 302) {
+                var subURL, cookies = [];
+                event.responseHeaders.forEach(function (header) {
+                    switch (header.name) {
+                        case 'Location':
+                            subURL = "http://" + settings.server + "/"
+                                   + header.value;
+                            break;
+                        case 'Set-Cookie':
+                            cookies.push(/^[^=]*=[^;]*/(header.value)[0]);
+                    }
+                });
+                this.subRequest.url = subURL;
+                this.subRequest.requestHeaders = [
+                    new air.URLRequestHeader("Cookie", cookies.join("; "))
+                ];
+                air.trace(cookies.join("; "));
                 air.navigateToURL(this.subRequest);
             }
         },
@@ -680,4 +708,27 @@ var configurationManager = new function () {
     };
     this.addEventListener("commit", method(this, "commit"));
     this.commitPending = false; // Flag indicating that a commit event has been dispatched or the commit function called
+};
+
+var tempManager = new function () {
+    var theFile = new air.File;
+    var timers = {};
+    
+    this.file = function (name, ttl) {
+        deleteFile(name);
+        timers[name] = setTimeout(method(null, deleteFile, name), +ttl);
+        return theFile;
+    };
+    
+    function deleteFile (name) {
+        theFile.url = "app-storage:/temp/" + name;
+        if (theFile.exists) theFile.deleteFile();
+        if (!name in timers) return;
+        clearTimeout(timers[name]);
+        delete timers[name];
+    }
+    
+    nativeApplication.addEventListener(air.Event.EXITING, function () {
+        Object.keys(timers).forEach(deleteFile);
+    });
 };

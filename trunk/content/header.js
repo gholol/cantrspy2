@@ -33,3 +33,11 @@ function method (object, member) {
         return object[member].apply(object, Array.prototype.slice.call(arguments).concat(postArguments));
     };
 }
+
+if (!("keys" in Object)) Object.keys = function (object) {
+    var keys = [];
+    for (var key in object) {
+        if (object.hasOwnProperty(key)) keys.push(key);
+    }
+    return keys;
+};

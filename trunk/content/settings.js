@@ -5,7 +5,7 @@ function updateLocale () {
 	localizer.update(document);
     var headLocale = main.settings.defaultLocaleChain[0];
     lang_default.textContent = localizer.getString("settingsWindow", "osLocale",
-        [localizer.getString("general", "lang_" + headLocale) || headLocale], headLocale);
+        [localizer.getString("general", "lang_" + headLocale) || headLocale]);
 
     // Resize window to fit content.
 	nativeWindow.stage.stageWidth = container.offsetWidth;

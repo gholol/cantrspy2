@@ -1,0 +1,1 @@
+..\AIR\SDK\bin\adl application.xml -- trace
