@@ -550,7 +550,7 @@ var requestManager = {
                 arguments.callee.called = true;
                 // Create URLRequest
                 this.request = new air.URLRequest("http://" + settings.server);
-                this.request.method = air.URLRequestMethod.GET
+                this.request.method = air.URLRequestMethod.POST;
                 this.request.cacheResponse = false;
                 this.request.useCache = false;
                 this.request.manageCookies = false;
@@ -565,10 +565,11 @@ var requestManager = {
                 this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "close"));
                 this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "close"));
                 // Create secondary URLRequest
-                this.subRequest = new air.URLRequest;
-                this.subRequest.cacheResponse = false;
-                this.subRequest.useCache = false;
-                this.subRequest.manageCookies = false;
+                this.subRequest = new air.URLRequest("http://" + settings.server);
+                this.subRequest.method = air.URLRequestMethod.GET;
+                this.subRequest.data = new air.URLVariables;
+                this.subRequest.data.page = "login";
+                this.subRequest.data.data = "yes";
                 // Set to close on logout
                 nativeApplication.addEventListener("logout", method(this, "close"));
             }
@@ -585,12 +586,6 @@ var requestManager = {
             if (this.status == "idle") {
                 // Begins the process of logging in with the user's credentials
                 // and opening their player page in a new browser window
-                redirect("http://%s/?page=login&data=yes&id=%s&password=%s"
-                         .replace(/%s/, settings.server)
-                         .replace(/%s/, this.request.data.id)
-                         .replace(/%s/, this.request.data.password));
-                return;
-                
                 this.loader.load(this.request);
                 this.status = "requesting";
                 menuManager.appIcon.disable("playerPage");
@@ -599,23 +594,18 @@ var requestManager = {
 
         httpResponse: function (event) {
             // Handles the HTTP response from the player page request
-            if (event.status == 302) {
-                var subURL, cookies = [];
-                event.responseHeaders.forEach(function (header) {
-                    switch (header.name) {
-                        case 'Location':
-                            subURL = "http://" + settings.server + "/"
-                                   + header.value;
-                            break;
-                        case 'Set-Cookie':
-                            cookies.push(/^[^=]*=[^;]*/(header.value)[0]);
-                    }
-                });
-                this.subRequest.url = subURL;
-                this.subRequest.requestHeaders = [
-                    new air.URLRequestHeader("Cookie", cookies.join("; "))
-                ];
-                air.trace(cookies.join("; "));
+            var SESSION = "40d0228e409c8b711909680cba94881c";
+            var cookies = {};
+            event.responseHeaders.forEach(function (header) {
+                if (header.name == "Set-Cookie") {
+                    header.value.split(";").forEach(function (cookie) {
+                        cookie = cookie.split("=");
+                        cookies[cookie[0].trim()] = cookie[1].trim();
+                    });
+                }
+            });
+            if (SESSION in cookies) {
+                this.subRequest.data.session = cookies[SESSION];
                 air.navigateToURL(this.subRequest);
             }
         },
@@ -708,27 +698,4 @@ var configurationManager = new function () {
     };
     this.addEventListener("commit", method(this, "commit"));
     this.commitPending = false; // Flag indicating that a commit event has been dispatched or the commit function called
-};
-
-var tempManager = new function () {
-    var theFile = new air.File;
-    var timers = {};
-    
-    this.file = function (name, ttl) {
-        deleteFile(name);
-        timers[name] = setTimeout(method(null, deleteFile, name), +ttl);
-        return theFile;
-    };
-    
-    function deleteFile (name) {
-        theFile.url = "app-storage:/temp/" + name;
-        if (theFile.exists) theFile.deleteFile();
-        if (!name in timers) return;
-        clearTimeout(timers[name]);
-        delete timers[name];
-    }
-    
-    nativeApplication.addEventListener(air.Event.EXITING, function () {
-        Object.keys(timers).forEach(deleteFile);
-    });
 };

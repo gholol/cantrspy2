@@ -41,3 +41,7 @@ if (!("keys" in Object)) Object.keys = function (object) {
     }
     return keys;
 };
+
+if (!("trim" in String.prototype)) String.prototype.trim = function () {
+    return /^\s*(.*?)\s*$/.exec(this)[1];
+};
