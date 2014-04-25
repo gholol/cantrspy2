@@ -21,7 +21,7 @@ function appInit () {
 	// Set up the initial application environment and define settings
 	if (settings.debug) {
 		settings.server = "joo.freehostia.com";
-		settings.updateInterval = 1000;
+		settings.updateInterval = 10000;
 	} else {
 		settings.server = "cantr.net";
 		settings.updateInterval = 90000;
