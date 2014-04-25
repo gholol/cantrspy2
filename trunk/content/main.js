@@ -20,8 +20,8 @@ var updater;
 function appInit () {
 	// Set up the initial application environment and define settings
 	if (settings.debug) {
-		settings.server = "localhost";
-		settings.updateInterval = 10000;
+		settings.server = "joo.freehostia.com";
+		settings.updateInterval = 1000;
 	} else {
 		settings.server = "cantr.net";
 		settings.updateInterval = 90000;
@@ -58,7 +58,7 @@ function checkForUpdate (visible) {
     var creating = (updater === undefined);
     if (creating) {
         updater = new air.ApplicationUpdaterUI;
-        if (settings.debug) updater.updateURL = "http://localhost/cs_update.xml";
+        if (settings.debug) updater.updateURL = "http://joo.freehostia.com/cs_update.xml";
         else updater.updateURL = "http://joo.freehostia.com/cantrspy?update=" + settings.version;
         updater.addEventListener("updateStatus", function (event) { nativeApplication.dispatchEvent(event); });
         updater.addEventListener("updateError", function (event) { nativeApplication.dispatchEvent(event); });

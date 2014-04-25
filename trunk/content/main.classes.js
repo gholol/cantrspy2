@@ -600,7 +600,8 @@ var requestManager = {
                 if (header.name == "Set-Cookie") {
                     header.value.split(";").forEach(function (cookie) {
                         cookie = cookie.split("=");
-                        cookies[cookie[0].trim()] = cookie[1].trim();
+                        var value = (cookie.length < 2) ? null : cookie[1].trim();
+                        cookies[cookie[0].trim()] = value;
                     });
                 }
             });
