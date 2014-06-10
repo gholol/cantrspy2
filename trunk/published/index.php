@@ -88,8 +88,10 @@ echo <<<•
         } // -->
         </script>
         <div style="font-size:smaller">
-            Note: due to a bug involving Adobe Flash, Google Chrome and Chromium
-            users may need to install CantrSpy <a class="link" href="?$option&static">manually</a>.
+            Submit comments <a class="link" href="http://forum.cantr.org/viewtopic.php?f=1&t=17225">on the forum</a>.
+        </div>
+        <div style="font-size:smaller">
+            <a class="link" href="?$option&static">Manual installation</a>
         </div>
 •;
     }
