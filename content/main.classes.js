@@ -34,6 +34,7 @@ var windowManager = {
 
 /* Object updateManager
  *   void initialise(Object credentials)
+ *   void refresh()
  *   void userUpdate()
  *   void stopFlashing()
  */
@@ -48,14 +49,14 @@ var updateManager = {
         this.stopFlashing();
     },
 
-    initialise: function (aCredentials) {
+    initialise: function (aCredentials) {        
         if (!(arguments.callee.called)) {
             // Stop from calling again
             arguments.callee.called = true;
             // Set to destroy on logout
             nativeApplication.addEventListener("logout", method(this, this.destroy));
             // Initialise URLRequest
-            this.updateRequest = new air.URLRequest("http://" + settings.server + "/app.getevents2.php");
+			this.updateRequest = new air.URLRequest();
             this.updateRequest.cacheResponse = this.updateRequest.useCache = false;
             this.updateRequest.data = new air.URLVariables;
             this.updateRequest.data.ver = settings.protocolVersion;
@@ -67,7 +68,7 @@ var updateManager = {
             this.updateLoader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "updateEvent"));
             if (settings.trace) {
                 this.updateLoader.addEventListener(air.Event.OPEN, method(this, function () {
-                    trace(this.updateRequest.data.toString(), "request");
+                    trace(this.updateRequest.url + "?" + this.updateRequest.data.toString(), "request");
                 }));
                 this.updateLoader.addEventListener(air.Event.COMPLETE, method(this, function () {
                     trace(this.updateLoader.data.toString(), "response");
@@ -78,6 +79,10 @@ var updateManager = {
         this.oldNames = [];
         this.flashNames = [];
         this.flashTimeouts = [];
+        this.status = "idle";
+
+        // Initialise user-configurable variables
+        this.refresh();
 
         // Retrieve a public key from the server to initialise an update session
         this.credentials = aCredentials;
@@ -89,6 +94,16 @@ var updateManager = {
         this.phase = "requesting_key";
         this.interval = window.setInterval(function () { updateManager.update(); }, settings.updateInterval);
         this.update();
+    },
+
+    refresh: function () {
+        if (this.status == "idle") {
+            var scheme = configurationManager.get("urlScheme", settings.defaultURLScheme);
+            this.updateRequest.url = scheme + "://" + settings.server + "/app.getevents2.php";
+            this.refreshLater = false;
+        } else {
+            this.refreshLater = true;
+        }
     },
 
     userUpdate: function () {
@@ -228,6 +243,7 @@ var updateManager = {
         }
 
         this.status = "idle";
+        if (this.refreshLater) this.refresh();
         menuManager.appIcon.enable("updateNow");
     },
     
@@ -536,7 +552,8 @@ var iconManager = new function () {
 /* Object requestManager
  *   Object playerPage
  *     void initialise(Object credentials)
- *       void open(NativeMenuItem item)
+ *     void refresh()
+ *     void open(NativeMenuItem item)
  */
 var requestManager = {
     playerPage: {
@@ -549,7 +566,8 @@ var requestManager = {
                 // Stop any subsequent executions
                 arguments.callee.called = true;
                 // Create URLRequest
-                this.request = new air.URLRequest("http://" + settings.server);
+				var scheme = configurationManager.get("urlScheme", settings.defaultURLScheme);
+                this.request = new air.URLRequest();
                 this.request.method = air.URLRequestMethod.POST;
                 this.request.cacheResponse = false;
                 this.request.useCache = false;
@@ -565,7 +583,7 @@ var requestManager = {
                 this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, method(this, "close"));
                 this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, method(this, "close"));
                 // Create secondary URLRequest
-                this.subRequest = new air.URLRequest("http://" + settings.server);
+                this.subRequest = new air.URLRequest();
                 this.subRequest.method = air.URLRequestMethod.GET;
                 this.subRequest.data = new air.URLVariables;
                 this.subRequest.data.page = "login";
@@ -580,6 +598,20 @@ var requestManager = {
 
             // Initialise status
             this.status = "idle";
+
+            // Initialise user-configurable variables
+            this.refresh();
+        },
+
+        refresh: function () {
+            // Respond to changes in any relevant configuration variables.
+            if (this.status == "idle") {
+                var scheme = configurationManager.get("urlScheme", settings.defaultURLScheme);
+                this.request.url = this.subRequest.url = scheme + "://" + settings.server;
+                this.refreshLater = false;
+            } else {
+                this.refreshLater = true;
+            }
         },
 
         open: function () {
@@ -614,6 +646,7 @@ var requestManager = {
         close: function () {
             // Cleans up after the HTTP request finishes
             this.status = "idle";
+            if (this.refreshLater) this.refresh();
             menuManager.appIcon.enable("playerPage");
         }
     }

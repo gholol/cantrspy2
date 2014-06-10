@@ -1,3 +1,12 @@
+Version 2.9.0
+    + Added an option to "Connect through SSL/TLS", enabled by default, due to recently-added HTTPS support on Cantr's server.
+        + There are plans to require the use of SSL/TLS in the future, after which CantrSpy will likely not work without this.
+        + It is possible (but unlikely) that Cantr will cease to support SSL/TLS, in which case CantrSpy will only work when this is disabled.
+    + Changed to a new publication certificate, since the previous certificate expired.
+        + Users of previous versions must manually uninstall the old version, then install the new version.
+        + Settings and saved login details from the old version will not be present in the new version.
+        + Certain previous versions (without a digitally signed timestamp) will no longer work, while others may work.
+
 Version 2.8.5
     + Fixed an error where certain server-side cookies prevented the "open player page" function from working.
     . Changed "debug" to point to joo.freehostia.com instead of localhost.

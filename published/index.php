@@ -1,9 +1,13 @@
 <?php
-$air_path = 'http://cantrspy2.googlecode.com/svn/trunk/published/';
-$version = '2.8.5';
-$air = $air_path . 'cantrspy_2_8_5.air';
 $option = key($_GET);
-if ($option === 'update') {
+$air_path = 'http://cantrspy2.googlecode.com/svn/trunk/published/';
+$version = '2.9.0';
+$air = $air_path . 'cantrspy_2_9_0.air';
+
+if ($option == 'update' && $_GET['key'] != '2014') {
+    // Updating from an incompatible version; offer nothing.
+} else if ($option == 'update' && $_GET['key'] == '2014') {
+    // Updating from a compatible version.
     $package = 'http://'.$_SERVER['HTTP_HOST'].str_replace('?update', '?package', $_SERVER['REQUEST_URI']);
     $notes = file_get_contents('changes.log');
     echo <<<•

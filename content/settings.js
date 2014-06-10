@@ -96,6 +96,16 @@ window.onload = function () {
         flashDuration.disabled = !(this.checked && flash_definite.checked);        
     }).call(flashIcon);
     
+    // Bind useSecure
+    var scheme = main.configurationManager.get("urlScheme", main.settings.defaultURLScheme);
+    useSecure.checked = (scheme == "https");
+	useSecure.onchange = function () {
+        var scheme = useSecure.checked ? "https" : "http";
+        main.configurationManager.set("urlScheme", scheme);
+        main.requestManager.playerPage.refresh();
+        main.updateManager.refresh();
+    };
+    
     // Bind iconStyle
     window["iconStyle_" + main.configurationManager.get("iconStyle", "circle")].click();
     iconStyle_circle.onchange = iconStyle_square.onchange = function () {
