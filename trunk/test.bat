@@ -1,1 +1,1 @@
-..\AIR\SDK\bin\adl application.xml
+..\AIR_SDK\bin\adl application.xml

@@ -27,8 +27,10 @@ function appInit () {
 		settings.updateInterval = 90000;
 	}
 	settings.protocolVersion = "1.1.0.";
+    settings.updateKey = "2014";
     settings.clickThreshold = 500;
     settings.flashPeriod = 1000;
+	settings.defaultURLScheme = "https";
     settings.defaultLocaleChain = localizer.getLocaleChain();
     
 	var node = new DOMParser().parseFromString(nativeApplication.applicationDescriptor, "text/xml");
@@ -59,7 +61,9 @@ function checkForUpdate (visible) {
     if (creating) {
         updater = new air.ApplicationUpdaterUI;
         if (settings.debug) updater.updateURL = "http://joo.freehostia.com/cs_update.xml";
-        else updater.updateURL = "http://joo.freehostia.com/cantrspy?update=" + settings.version;
+        else updater.updateURL =
+            "http://joo.freehostia.com/cantrspy?update=" + settings.version +
+            "&key=" + settings.updateKey;
         updater.addEventListener("updateStatus", function (event) { nativeApplication.dispatchEvent(event); });
         updater.addEventListener("updateError", function (event) { nativeApplication.dispatchEvent(event); });
         updater.addEventListener(air.UpdateEvent.INITIALIZED, function (event) {
