@@ -51,7 +51,7 @@ echo <<<•
 <html><head>
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
     <link rel="icon" href="icon.ico" />
-    <title>CantrSpy Installation Page</title>
+    <title>CantrSpy intro Installation Page</title>
     <script language="JavaScript" type="text/javascript"><!--
         var requiredMajorVersion = 9, requiredMinorVersion = 0, requiredRevision = 115;
     // --></script>
@@ -65,7 +65,7 @@ echo <<<•
 </head><body>
     <span class="centred"><span>
         <div class="title" style="font-size: 24pt; font-weight: bold; padding-bottom: 20px">
-            CantrSpy $version
+            CantrSpy intro $version
         </div>
 •;
     if (array_key_exists("static", $_GET)) {
@@ -79,7 +79,7 @@ echo <<<•
         if (DetectFlashVer(requiredMajorVersion, requiredMinorVersion, requiredRevision)) {
             AC_FL_RunContent('codebase', 'http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab',
             'width','217', 'height','180', 'id','badge', 'align','middle', 'src','assets/badge',
-            'quality','high', 'bgcolor','#004000', 'name','badge', 'allowscriptaccess','always',
+            'quality','high', 'bgcolor','#661100', 'name','badge', 'allowscriptaccess','always',
             'pluginspage','http://www.macromedia.com/go/getflashplayer',
             'flashvars','appname=CantrSpy&appurl=$air&airversion=2.5&imageurl=assets/badge.png&buttoncolor=000000&messagecolor=FFFFFF',
             'movie','assets/badge');
